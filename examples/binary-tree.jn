@@ -1,0 +1,98 @@
+# Binary Tree Example
+# Demonstrates the fix for greedy type application bug
+# Now we can use: Branch Tree Tree (same type twice!)
+
+type Tree = Leaf Int | Branch Tree Tree
+
+# Build a sample tree:
+#        Branch
+#       /      \
+#   Branch    Branch
+#   /   \     /   \
+#  5    10   3    8
+let tree = Branch(
+  Branch(Leaf(5), Leaf(10)),
+  Branch(Leaf(3), Leaf(8))
+)
+
+# Sum all values in the tree
+let sumTree = (t) ->
+  match t with
+  | Leaf(n) -> n
+  | Branch(left, right) -> sumTree(left) + sumTree(right)
+  end
+
+# Find maximum value in the tree
+let maxTree = (t) ->
+  match t with
+  | Leaf(n) -> n
+  | Branch(left, right) ->
+      if maxTree(left) > maxTree(right) then maxTree(left) else maxTree(right)
+  end
+
+# Count leaf nodes in the tree
+let countNodes = (t) ->
+  match t with
+  | Leaf(n) -> 1
+  | Branch(left, right) -> countNodes(left) + countNodes(right)
+  end
+
+# Calculate height of the tree
+let height = (t) ->
+  match t with
+  | Leaf(n) -> 1
+  | Branch(left, right) ->
+      if height(left) > height(right) then 1 + height(left) else 1 + height(right)
+  end
+
+# Map a function over all leaf values
+let mapTree = (t, f) ->
+  match t with
+  | Leaf(n) -> Leaf(f(n))
+  | Branch(left, right) -> Branch(mapTree(left, f), mapTree(right, f))
+  end
+
+# Double all values
+let double = (x) -> x * 2
+let doubledTree = mapTree(tree, double)
+
+# Run tests
+let totalSum = sumTree(tree)
+let test1 = if totalSum == 26 then print("✓ Sum: 26") else print("✗ Sum failed")
+
+let maxVal = maxTree(tree)
+let test2 = if maxVal == 10 then print("✓ Max: 10") else print("✗ Max failed")
+
+let nodeCount = countNodes(tree)
+let test3 = if nodeCount == 4 then print("✓ Leaf count: 4") else print("✗ Count failed")
+
+let treeHeight = height(tree)
+let test4 = if treeHeight == 3 then print("✓ Height: 3") else print("✗ Height failed")
+
+let doubledSum = sumTree(doubledTree)
+let test5 = if doubledSum == 52 then print("✓ Map double: 52") else print("✗ Map failed")
+
+# Test with a simpler tree
+let simpleTree = Branch(Leaf(100), Leaf(200))
+let simpleSum = sumTree(simpleTree)
+let test6 = if simpleSum == 300 then print("✓ Simple tree: 300") else print("✗ Simple failed")
+
+# Test with a single leaf
+let singleLeaf = Leaf(42)
+let singleSum = sumTree(singleLeaf)
+let test7 = if singleSum == 42 then print("✓ Single leaf: 42") else print("✗ Single failed")
+
+# Test deeply nested tree (right-skewed)
+let deepTree = Branch(
+  Leaf(1),
+  Branch(
+    Leaf(2),
+    Branch(Leaf(3), Leaf(4))
+  )
+)
+let deepSum = sumTree(deepTree)
+let deepHeight = height(deepTree)
+let test8 = if deepSum == 10 then print("✓ Deep sum: 10") else print("✗ Deep sum failed")
+let test9 = if deepHeight == 4 then print("✓ Deep height: 4") else print("✗ Deep height failed")
+
+let final = print("=== Binary tree tests complete! ===")

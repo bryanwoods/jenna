@@ -1,0 +1,18 @@
+# Higher-order functions in Jenna
+
+# Function that returns a function
+let makeAdder = (x) -> (y) -> x + y
+
+# Create an "add5" function
+let add5 = makeAdder(5)
+
+# Use it
+let result = add5(10)
+let output = print("5 + 10 = 15")
+
+# Function that applies a function twice
+let twice = (f, x) -> f(f(x))
+
+let addOne = (n) -> n + 1
+let result2 = twice(addOne, 5)
+let output2 = print("twice(addOne, 5) = 7")

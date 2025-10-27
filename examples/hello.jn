@@ -1,0 +1,3 @@
+# Hello World in Jenna
+let message = "Hello, Jenna!"
+let result = print(message)

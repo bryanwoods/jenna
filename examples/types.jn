@@ -1,0 +1,22 @@
+# Testing ADTs and Pattern Matching
+
+# Define Option type
+type Option a = Some a | None
+
+# Define Result type
+type Result a e = Ok a | Err e
+
+# Create some values
+let x = Some(42)
+let y = None
+let result = Ok("success")
+
+# Pattern match on Option
+let unwrap = (opt) ->
+  match opt with
+  | Some(value) -> value
+  | None -> 0
+  end
+
+# Test it
+let value = unwrap(x)

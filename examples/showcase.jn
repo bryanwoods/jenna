@@ -1,0 +1,173 @@
+# Jenna Language Showcase
+# Demonstrates ADTs, pattern matching, recursion, higher-order functions, and type inference
+
+# ============================================================
+# Part 1: Algebraic Data Types
+# ============================================================
+
+# Define a simple binary tree of integers
+type Tree = Leaf Int | Branch Tree Tree
+
+# Define Option for safe null handling
+type Option a = Some a | None
+
+# Define Result for error handling
+type Result a e = Ok a | Err e
+
+# ============================================================
+# Part 2: Tree Operations with Pattern Matching
+# ============================================================
+
+# Count nodes in a tree
+let size = (tree) ->
+  match tree with
+  | Leaf(x) -> 1
+  | Branch(left, right) -> size(left) + size(right)
+  end
+
+# Sum all values in a tree
+let sumTree = (tree) ->
+  match tree with
+  | Leaf(x) -> x
+  | Branch(left, right) -> sumTree(left) + sumTree(right)
+  end
+
+# Find maximum value in a tree
+let maxTree = (tree) ->
+  match tree with
+  | Leaf(x) -> x
+  | Branch(left, right) ->
+      if maxTree(left) > maxTree(right) then maxTree(left) else maxTree(right)
+  end
+
+# Double all values in a tree
+let doubleTree = (tree) ->
+  match tree with
+  | Leaf(x) -> Leaf(x * 2)
+  | Branch(left, right) -> Branch(doubleTree(left), doubleTree(right))
+  end
+
+# ============================================================
+# Part 3: List Operations
+# ============================================================
+
+# Define linked list
+type List a = Cons a List a | Nil
+
+# List length
+let length = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(h, t) -> 1 + length(t)
+  end
+
+# List sum
+let sum = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(h, t) -> h + sum(t)
+  end
+
+# List map
+let map = (lst, f) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(h, t) -> Cons(f(h), map(t, f))
+  end
+
+# List filter
+let filter = (lst, pred) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(h, t) -> if pred(h) then Cons(h, filter(t, pred)) else filter(t, pred)
+  end
+
+# ============================================================
+# Part 4: Test Tree Operations
+# ============================================================
+
+# Create a tree:      5
+#                    / \
+#                   3   8
+let tree1 = Branch(Leaf(3), Leaf(8))
+
+let treeSize = size(tree1)
+let treeSum = sumTree(tree1)
+let treeMax = maxTree(tree1)
+
+let check1 = if treeSize == 2 then print("✓ Tree size: 2") else print("✗ Tree size failed")
+let check2 = if treeSum == 11 then print("✓ Tree sum: 11") else print("✗ Tree sum failed")
+let check3 = if treeMax == 8 then print("✓ Tree max: 8") else print("✗ Tree max failed")
+
+# Test double tree
+let tree2 = doubleTree(tree1)
+let tree2Sum = sumTree(tree2)
+
+let check4 = if tree2Sum == 22 then print("✓ Double tree: sum = 22") else print("✗ Double tree failed")
+
+# ============================================================
+# Part 5: Test List Operations
+# ============================================================
+
+# Create list [1, 2, 3, 4, 5, 6]
+let list1 = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Cons(6, Nil))))))
+
+let listLen = length(list1)
+let listSum = sum(list1)
+
+let check5 = if listLen == 6 then print("✓ List length: 6") else print("✗ List length failed")
+let check6 = if listSum == 21 then print("✓ List sum: 21") else print("✗ List sum failed")
+
+# Test map (triple all elements)
+let tripleFunc = (x) -> x * 3
+let list2 = map(list1, tripleFunc)
+let list2Sum = sum(list2)
+
+let check7 = if list2Sum == 63 then print("✓ List map: sum = 63") else print("✗ List map failed")
+
+# Test filter (keep only even numbers)
+let isEven = (x) -> x - x / 2 * 2 == 0
+let list3 = filter(list1, isEven)
+let list3Len = length(list3)
+let list3Sum = sum(list3)
+
+let check8 = if list3Len == 3 then print("✓ Filter length: 3") else print("✗ Filter length failed")
+let check9 = if list3Sum == 12 then print("✓ Filter sum: 12") else print("✗ Filter sum failed")
+
+# ============================================================
+# Part 6: Nested Data Structures
+# ============================================================
+
+# List of Options
+let listWithOptions = Cons(Some(10), Cons(None, Cons(Some(20), Cons(None, Cons(Some(30), Nil)))))
+
+# Sum, treating None as 0
+let sumOptions = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(h, t) -> match h with | Some(x) -> x + sumOptions(t) | None -> sumOptions(t) end
+  end
+
+let optSum = sumOptions(listWithOptions)
+let check10 = if optSum == 60 then print("✓ Option list sum: 60") else print("✗ Option list failed")
+
+# ============================================================
+# Part 7: Higher-Order Functions
+# ============================================================
+
+# Compose two functions
+let compose = (f, g) -> (x) -> f(g(x))
+
+# Test composition: double then add 1
+let double = (x) -> x * 2
+let addOne = (x) -> x + 1
+let doubleAndAddOne = compose(addOne, double)
+
+let result = doubleAndAddOne(5)
+let check11 = if result == 11 then print("✓ Function composition: 11") else print("✗ Composition failed")
+
+# ============================================================
+# Summary
+# ============================================================
+
+let summary = print("All tests completed!")

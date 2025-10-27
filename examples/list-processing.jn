@@ -1,0 +1,75 @@
+# List processing with ADTs demonstrating map, filter, and fold operations
+
+# Define a linked list type
+type List a = Cons a List a | Nil
+
+# Create a sample list: [1, 2, 3, 4, 5]
+let list = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+
+# Length function
+let length = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(head, tail) -> 1 + length(tail)
+  end
+
+# Sum function
+let sum = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(head, tail) -> head + sum(tail)
+  end
+
+# Map function - apply function to each element
+let mapDouble = (lst) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(head, tail) -> Cons(head * 2, mapDouble(tail))
+  end
+
+# Filter function - keep elements >= 3
+let filterGte3 = (lst) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(head, tail) ->
+      if head >= 3 then Cons(head, filterGte3(tail)) else filterGte3(tail)
+  end
+
+# Test length - should be 5
+let len = length(list)
+
+# Test sum - should be 15
+let total = sum(list)
+
+# Test map (double all elements) - should give [2,4,6,8,10]
+let doubled = mapDouble(list)
+let doubleLen = length(doubled)
+let doubleSum = sum(doubled)
+
+# Test filter (keep >= 3) - should give [3,4,5]
+let filtered = filterGte3(list)
+let filtLen = length(filtered)
+let filtSum = sum(filtered)
+
+# Verify results with assertions
+let lengthOk = if len == 5 then print("✓ Length test passed") else print("✗ Length test failed")
+let sumOk = if total == 15 then print("✓ Sum test passed") else print("✗ Sum test failed")
+let doubleLenOk = if doubleLen == 5 then print("✓ Double length test passed") else print("✗ Double length test failed")
+let doubleSumOk = if doubleSum == 30 then print("✓ Double sum test passed") else print("✗ Double sum test failed")
+let filtLenOk = if filtLen == 3 then print("✓ Filter length test passed") else print("✗ Filter length test failed")
+let filtSumOk = if filtSum == 12 then print("✓ Filter sum test passed") else print("✗ Filter sum test failed")
+
+# Nested structure: List of Options
+type Option a = Some a | None
+
+let listWithMaybe = Cons(Some(10), Cons(None, Cons(Some(20), Nil)))
+
+# Sum unwrapping options (None = 0) - should be 30
+let sumOptions = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(head, tail) -> match head with | Some(val) -> val + sumOptions(tail) | None -> sumOptions(tail) end
+  end
+
+let optSum = sumOptions(listWithMaybe)
+let optSumOk = if optSum == 30 then print("✓ Option sum test passed") else print("✗ Option sum test failed")

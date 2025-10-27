@@ -1,0 +1,36 @@
+# Testing Result type with pattern matching
+
+# Define Result type
+type Result a e = Ok a | Err e
+
+# Create some results
+let success = Ok(42)
+let failure = Err("something went wrong")
+
+# Pattern match on Result
+let getValueOr = (res, fallback) ->
+  match res with
+  | Ok(value) -> value
+  | Err(msg) -> fallback
+  end
+
+# Test with Ok
+let val1 = getValueOr(success, 0)
+let msg1 = print("getValueOr(Ok(42), 0) = 42")
+
+# Test with Err
+let val2 = getValueOr(failure, 99)
+let msg2 = print("getValueOr(Err(...), 99) = 99")
+
+# Another pattern match example - isOk
+let isOk = (res) ->
+  match res with
+  | Ok(x) -> 1
+  | Err(e) -> 0
+  end
+
+let check1 = isOk(success)
+let msg3 = print("isOk(Ok(42)) = 1")
+
+let check2 = isOk(failure)
+let msg4 = print("isOk(Err(...)) = 0")

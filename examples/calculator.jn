@@ -1,0 +1,90 @@
+# A simple expression calculator demonstrating ADTs, pattern matching, and recursion
+
+# Define an expression type
+type Expr = Num Int | Add Expr Expr | Sub Expr Expr | Mul Expr Expr | Div Expr Expr
+
+# Define Result type for error handling
+type Result a e = Ok a | Err e
+
+# Evaluate an expression
+let eval = (expr) ->
+  match expr with
+  | Num(n) -> Ok(n)
+  | Add(left, right) ->
+      match eval(left) with
+      | Ok(l) ->
+          match eval(right) with
+          | Ok(r) -> Ok(l + r)
+          | Err(e) -> Err(e)
+          end
+      | Err(e) -> Err(e)
+      end
+  | Sub(left, right) ->
+      match eval(left) with
+      | Ok(l) ->
+          match eval(right) with
+          | Ok(r) -> Ok(l - r)
+          | Err(e) -> Err(e)
+          end
+      | Err(e) -> Err(e)
+      end
+  | Mul(left, right) ->
+      match eval(left) with
+      | Ok(l) ->
+          match eval(right) with
+          | Ok(r) -> Ok(l * r)
+          | Err(e) -> Err(e)
+          end
+      | Err(e) -> Err(e)
+      end
+  | Div(left, right) ->
+      match eval(right) with
+      | Ok(r) ->
+          if r == 0 then
+            Err("Division by zero")
+          else
+            match eval(left) with
+            | Ok(l) -> Ok(l / r)
+            | Err(e) -> Err(e)
+            end
+          end
+      | Err(e) -> Err(e)
+      end
+  end
+
+# Helper to print results
+let printResult = (result) ->
+  match result with
+  | Ok(value) -> print(value)
+  | Err(msg) -> print(msg)
+  end
+
+# Test 1: Simple addition - (5 + 3)
+let expr1 = Add(Num(5), Num(3))
+let result1 = eval(expr1)
+let msg1 = print("(5 + 3) =")
+let out1 = printResult(result1)
+
+# Test 2: Nested operations - ((10 - 2) * 3)
+let expr2 = Mul(Sub(Num(10), Num(2)), Num(3))
+let result2 = eval(expr2)
+let msg2 = print("((10 - 2) * 3) =")
+let out2 = printResult(result2)
+
+# Test 3: Complex expression - (((20 / 4) + 3) * 2)
+let expr3 = Mul(Add(Div(Num(20), Num(4)), Num(3)), Num(2))
+let result3 = eval(expr3)
+let msg3 = print("(((20 / 4) + 3) * 2) =")
+let out3 = printResult(result3)
+
+# Test 4: Division by zero error
+let expr4 = Div(Num(10), Num(0))
+let result4 = eval(expr4)
+let msg4 = print("(10 / 0) =")
+let out4 = printResult(result4)
+
+# Test 5: Very nested expression - ((((100 / 10) - 5) * 2) + 3)
+let expr5 = Add(Mul(Sub(Div(Num(100), Num(10)), Num(5)), Num(2)), Num(3))
+let result5 = eval(expr5)
+let msg5 = print("((((100 / 10) - 5) * 2) + 3) =")
+let out5 = printResult(result5)

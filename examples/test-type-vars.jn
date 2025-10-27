@@ -1,0 +1,12 @@
+# Test type variable scoping
+type List a = Cons a List a | Nil
+
+# First use: List of Ints
+let intList = Cons(1, Cons(2, Nil))
+
+# Second use: List of a different type (should work!)
+type Option a = Some a | None
+
+let optionList = Cons(Some(10), Cons(None, Nil))
+
+let msg = print("Type variables work!")

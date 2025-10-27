@@ -1,0 +1,30 @@
+# Simpler calculator example
+
+# Define an expression type
+type Expr = Num Int | Add (Expr, Expr) | Mul (Expr, Expr)
+
+# Simple evaluation without error handling first
+let eval = (expr) ->
+  match expr with
+  | Num(n) -> n
+  | Add(left, right) -> eval(left) + eval(right)
+  | Mul(left, right) -> eval(left) * eval(right)
+  end
+
+# Test 1: Simple number
+let expr1 = Num(42)
+let result1 = eval(expr1)
+let msg1 = print("42 =")
+let out1 = print(result1)
+
+# Test 2: Addition
+let expr2 = Add(Num(5), Num(3))
+let result2 = eval(expr2)
+let msg2 = print("5 + 3 =")
+let out2 = print(result2)
+
+# Test 3: Nested
+let expr3 = Mul(Add(Num(2), Num(3)), Num(4))
+let result3 = eval(expr3)
+let msg3 = print("(2 + 3) * 4 =")
+let out3 = print(result3)

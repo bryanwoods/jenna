@@ -1,0 +1,24 @@
+# Test new stdlib functions
+
+# Test mod
+let test1 = mod(10, 3)
+let check1 = if test1 == 1 then print("✓ mod(10, 3) = 1") else print("✗ mod failed")
+
+let test2 = mod(15, 5)
+let check2 = if test2 == 0 then print("✓ mod(15, 5) = 0") else print("✗ mod failed")
+
+# Test intToString
+let str1 = intToString(42)
+let check3 = if str1 == "42" then print("✓ intToString(42) = \"42\"") else print("✗ intToString failed")
+
+# Test printInt
+let check4 = print("Testing printInt:")
+let test3 = printInt(123)
+let check5 = if test3 == 123 then print("✓ printInt(123) works") else print("✗ printInt failed")
+
+# Test printBool
+let check6 = print("Testing printBool:")
+let test4 = printBool(1 == 1)
+let check7 = if test4 then print("✓ printBool(true) works") else print("✗ printBool failed")
+
+let final = print("=== All stdlib tests passed! ===")

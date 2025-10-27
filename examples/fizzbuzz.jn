@@ -1,0 +1,37 @@
+# FizzBuzz in Jenna
+# Demonstrates ADTs, pattern matching, and recursion
+
+# Define the FizzBuzz result type
+type FizzBuzzResult = Fizz | Buzz | FizzBuzz | Number
+
+# Check if x is divisible by n using the modulo operator
+let divisibleBy = (x, n) -> x % n == 0
+
+# Compute FizzBuzz for a single number using pattern matching
+let fizzBuzz = (n) ->
+  if divisibleBy(n, 15) then
+    FizzBuzz
+  else
+    if divisibleBy(n, 3) then
+      Fizz
+    else
+      if divisibleBy(n, 5) then
+        Buzz
+      else
+        Number
+
+# Generate FizzBuzz output for a range [from, to]
+# Uses tail recursion to iterate through the range
+let fizzBuzzRange = (from, to) ->
+  if from > to then
+    0
+  else
+    match fizzBuzz(from) with
+    | Fizz -> if print("Fizz") == "Fizz" then fizzBuzzRange(from + 1, to) else 0
+    | Buzz -> if print("Buzz") == "Buzz" then fizzBuzzRange(from + 1, to) else 0
+    | FizzBuzz -> if print("FizzBuzz") == "FizzBuzz" then fizzBuzzRange(from + 1, to) else 0
+    | Number -> if print(".") == "." then fizzBuzzRange(from + 1, to) else 0
+    end
+
+# Run FizzBuzz from 1 to 100
+let run = fizzBuzzRange(1, 100)

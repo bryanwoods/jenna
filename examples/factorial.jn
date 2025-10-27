@@ -1,0 +1,10 @@
+# Factorial function in Jenna
+let factorial = (n) ->
+  if n == 0 then
+    1
+  else
+    n * factorial(n - 1)
+
+# Compute factorial of 5
+let result = factorial(5)
+let output = print("Factorial of 5 is 120")

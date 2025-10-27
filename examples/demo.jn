@@ -1,0 +1,128 @@
+# Jenna Language Demo
+# Showcases working features: ADTs, pattern matching, recursion, and higher-order functions
+
+# Part 1: Lists with Map, Filter, and Fold
+
+type List a = Cons a List a | Nil
+
+# Length
+let length = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(h, t) -> 1 + length(t)
+  end
+
+# Sum
+let sum = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(h, t) -> h + sum(t)
+  end
+
+# Map - apply function to each element
+let map = (lst, f) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(h, t) -> Cons(f(h), map(t, f))
+  end
+
+# Filter - keep elements matching predicate
+let filter = (lst, pred) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(h, t) -> if pred(h) then Cons(h, filter(t, pred)) else filter(t, pred)
+  end
+
+# Test list: [1, 2, 3, 4, 5]
+let numbers = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+
+let len = length(numbers)
+let total = sum(numbers)
+
+let test1 = if len == 5 then print("✓ Length: 5") else print("✗ Length failed")
+let test2 = if total == 15 then print("✓ Sum: 15") else print("✗ Sum failed")
+
+# Part 2: Higher-Order Functions
+
+# Double function
+let double = (x) -> x * 2
+
+# Map double over list
+let doubled = map(numbers, double)
+let doubledSum = sum(doubled)
+
+let test3 = if doubledSum == 30 then print("✓ Map double: 30") else print("✗ Map failed")
+
+# Filter even numbers (keeping >= 3)
+let gte3 = (x) -> x >= 3
+let filtered = filter(numbers, gte3)
+let filteredSum = sum(filtered)
+
+let test4 = if filteredSum == 12 then print("✓ Filter >= 3: 12") else print("✗ Filter failed")
+
+# Part 3: Option Type for Safe Null Handling
+
+type Option a = Some a | None
+
+let safeDivide = (a, b) ->
+  if b == 0 then None else Some(a / b)
+
+let unwrapOr = (opt, fallback) ->
+  match opt with
+  | Some(x) -> x
+  | None -> fallback
+  end
+
+let result1 = safeDivide(10, 2)
+let result2 = safeDivide(10, 0)
+
+let val1 = unwrapOr(result1, -1)
+let val2 = unwrapOr(result2, -1)
+
+let test5 = if val1 == 5 then print("✓ Safe divide: 5") else print("✗ Safe divide failed")
+let test6 = if val2 == -1 then print("✓ Divide by zero handled") else print("✗ Error handling failed")
+
+# Part 4: Nested Pattern Matching
+
+type Result a e = Ok a | Err e
+
+let processOption = (opt) ->
+  match opt with
+  | Some(Ok(x)) -> x
+  | Some(Err(e)) -> -1
+  | None -> 0
+  end
+
+let opt1 = Some(Ok(42))
+let opt2 = Some(Err("error"))
+let opt3 = None
+
+let res1 = processOption(opt1)
+let res2 = processOption(opt2)
+let res3 = processOption(opt3)
+
+let test7 = if res1 == 42 then print("✓ Nested Ok: 42") else print("✗ Nested Ok failed")
+let test8 = if res2 == -1 then print("✓ Nested Err: -1") else print("✗ Nested Err failed")
+let test9 = if res3 == 0 then print("✓ None case: 0") else print("✗ None case failed")
+
+# Part 5: Function Composition
+
+let compose = (f, g) -> (x) -> f(g(x))
+let addOne = (x) -> x + 1
+let triple = (x) -> x * 3
+
+let addThenTriple = compose(triple, addOne)
+let result = addThenTriple(4)
+
+let test10 = if result == 15 then print("✓ Composition: 15") else print("✗ Composition failed")
+
+# Part 6: Recursive Fibonacci
+
+let fib = (n) ->
+  if n == 0 then 0 else if n == 1 then 1 else fib(n - 1) + fib(n - 2)
+
+let fib10 = fib(10)
+
+let test11 = if fib10 == 55 then print("✓ Fibonacci(10): 55") else print("✗ Fibonacci failed")
+
+let final = print("=== All tests complete! ===")

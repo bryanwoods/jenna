@@ -1,0 +1,108 @@
+# Exhaustiveness Checking Tests
+# Demonstrates pattern matching exhaustiveness warnings
+
+type Option a = Some a | None
+
+type Result a e = Ok a | Err e
+
+type TrafficLight = Red | Yellow | Green
+
+# Test 1: Non-exhaustive - missing None case
+# Should warn: Missing cases: None
+let test1 = (opt) ->
+  match opt with
+  | Some(x) -> x
+  end
+
+let result1 = test1(Some(42))
+let check1 = if result1 == 42 then print("✓ Test 1 passed") else print("✗ Test 1 failed")
+
+# Test 2: Non-exhaustive - missing Err case
+# Should warn: Missing cases: Err
+let test2 = (res) ->
+  match res with
+  | Ok(x) -> x
+  end
+
+let result2 = test2(Ok(100))
+let check2 = if result2 == 100 then print("✓ Test 2 passed") else print("✗ Test 2 failed")
+
+# Test 3: Exhaustive with wildcard
+# No warning - wildcard catches all cases
+let test3 = (opt) ->
+  match opt with
+  | Some(x) -> x
+  | _ -> 0
+  end
+
+let result3a = test3(Some(5))
+let result3b = test3(None)
+let check3a = if result3a == 5 then print("✓ Test 3a passed") else print("✗ Test 3a failed")
+let check3b = if result3b == 0 then print("✓ Test 3b passed") else print("✗ Test 3b failed")
+
+# Test 4: Exhaustive with identifier (catch-all binding)
+# No warning - identifier catches all cases
+let test4 = (opt) ->
+  match opt with
+  | Some(x) -> x
+  | other -> 0
+  end
+
+let result4a = test4(Some(7))
+let result4b = test4(None)
+let check4a = if result4a == 7 then print("✓ Test 4a passed") else print("✗ Test 4a failed")
+let check4b = if result4b == 0 then print("✓ Test 4b passed") else print("✗ Test 4b failed")
+
+# Test 5: Exhaustive with all constructors explicit
+# No warning - all constructors covered
+let test5 = (opt) ->
+  match opt with
+  | Some(x) -> x
+  | None -> 0
+  end
+
+let result5a = test5(Some(10))
+let result5b = test5(None)
+let check5a = if result5a == 10 then print("✓ Test 5a passed") else print("✗ Test 5a failed")
+let check5b = if result5b == 0 then print("✓ Test 5b passed") else print("✗ Test 5b failed")
+
+# Test 6: Non-exhaustive traffic light - missing Yellow and Green
+# Should warn: Missing cases: Yellow, Green
+let test6 = (light) ->
+  match light with
+  | Red -> 1
+  end
+
+let result6 = test6(Red)
+let check6 = if result6 == 1 then print("✓ Test 6 passed") else print("✗ Test 6 failed")
+
+# Test 7: Non-exhaustive traffic light - missing only Green
+# Should warn: Missing cases: Green
+let test7 = (light) ->
+  match light with
+  | Red -> 1
+  | Yellow -> 2
+  end
+
+let result7a = test7(Red)
+let result7b = test7(Yellow)
+let check7a = if result7a == 1 then print("✓ Test 7a passed") else print("✗ Test 7a failed")
+let check7b = if result7b == 2 then print("✓ Test 7b passed") else print("✗ Test 7b failed")
+
+# Test 8: Exhaustive traffic light
+# No warning - all cases covered
+let test8 = (light) ->
+  match light with
+  | Red -> 1
+  | Yellow -> 2
+  | Green -> 3
+  end
+
+let result8a = test8(Red)
+let result8b = test8(Yellow)
+let result8c = test8(Green)
+let check8a = if result8a == 1 then print("✓ Test 8a passed") else print("✗ Test 8a failed")
+let check8b = if result8b == 2 then print("✓ Test 8b passed") else print("✗ Test 8b failed")
+let check8c = if result8c == 3 then print("✓ Test 8c passed") else print("✗ Test 8c failed")
+
+let final = print("=== Exhaustiveness checking tests complete! ===")

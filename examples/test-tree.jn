@@ -1,0 +1,8 @@
+# Simple tree test
+type Tree = Leaf Int | Node Tree Tree
+
+let leaf1 = Leaf(5)
+let leaf2 = Leaf(3)
+let tree = Node(leaf1, leaf2)
+
+let msg = print("Tree created")

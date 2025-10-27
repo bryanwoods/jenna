@@ -1,0 +1,82 @@
+# Let-Expressions Example
+# Tests the new let-expression feature: let x = value in body
+
+# Test 1: Simple let-expression
+let test1 = let x = 5 in x + 10
+
+let check1 = if test1 == 15 then print("✓ Simple let-expression: 15") else print("✗ Failed")
+
+# Test 2: Nested let-expressions
+let test2 = let x = 10 in let y = 20 in x + y
+
+let check2 = if test2 == 30 then print("✓ Nested let-expressions: 30") else print("✗ Failed")
+
+# Test 3: Let-expression with function call
+let double = (n) -> n * 2
+
+let test3 = let x = 5 in double(x)
+
+let check3 = if test3 == 10 then print("✓ Let with function call: 10") else print("✗ Failed")
+
+# Test 4: Let-expression in match branch (the original use case!)
+type Tree = Leaf Int | Branch Tree Tree
+
+let maxTree = (tree) ->
+  match tree with
+  | Leaf(n) -> n
+  | Branch(l, r) ->
+      let leftMax = maxTree(l) in
+      let rightMax = maxTree(r) in
+      if leftMax > rightMax then leftMax else rightMax
+  end
+
+let myTree = Branch(
+  Branch(Leaf(5), Leaf(10)),
+  Branch(Leaf(3), Leaf(8))
+)
+
+let test4 = maxTree(myTree)
+
+let check4 = if test4 == 10 then print("✓ Let in match branch: 10") else print("✗ Failed")
+
+# Test 5: Complex nested expression with let
+let test5 = let a = 2 in let b = 3 in let c = 4 in a * b + c
+
+let check5 = if test5 == 10 then print("✓ Triple nested let: 10") else print("✗ Failed")
+
+# Test 6: Let-expression with constructor
+type Option a = Some a | None
+
+let test6 = let value = 42 in Some(value)
+
+let unwrap = (opt) ->
+  match opt with
+  | Some(x) -> x
+  | None -> 0
+  end
+
+let result6 = unwrap(test6)
+
+let check6 = if result6 == 42 then print("✓ Let with constructor: 42") else print("✗ Failed")
+
+# Test 7: Let-expression shadowing
+let x = 100
+
+let test7 = let x = 50 in x + 5
+
+let check7 = if test7 == 55 then print("✓ Let shadowing: 55") else print("✗ Failed")
+
+# Outer x should still be 100
+let check8 = if x == 100 then print("✓ Outer variable unchanged: 100") else print("✗ Failed")
+
+# Test 8: Let-expression in if branches
+let test8 = if true then let a = 10 in a * 2 else 0
+
+let check9 = if test8 == 20 then print("✓ Let in if-then: 20") else print("✗ Failed")
+
+# Test 9: Multiple operations in let body
+let test9 = let x = 5 in let y = 3 in x * y + x - y
+
+let check10 = if test9 == 17 then print("✓ Complex let body: 17") else print("✗ Failed")
+
+let final = print("=== Let-expression tests complete! ===")

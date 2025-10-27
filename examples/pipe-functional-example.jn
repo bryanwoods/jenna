@@ -1,0 +1,44 @@
+# Pipe operator - Functional programming style
+
+# Define some helper functions
+let add = (x, y) -> x + y
+let multiply = (x, y) -> x * y
+let subtract = (x, y) -> x - y
+
+# Partial application helpers
+let add5 = (x) -> add(x, 5)
+let multiplyBy2 = (x) -> multiply(x, 2)
+let subtract3 = (x) -> subtract(x, 3)
+
+# Example 1: Traditional nested calls vs pipe
+# Nested: subtract(multiply(add(10, 5), 2), 3)
+# Pipe:   10 |> add5 |> multiplyBy2 |> subtract3
+let nested = subtract(multiply(add(10, 5), 2), 3)
+let piped = 10 |> add5 |> multiplyBy2 |> subtract3
+let check1 = if nested == piped then print("✓ Nested and piped produce same result: 27") else print("✗ Test 1 failed")
+
+# Example 2: Data transformation pipeline
+let square = (x) -> x * x
+let isEven = (x) -> x % 2 == 0
+
+# Check if square of number is even
+let checkSquareEven = (n) -> n |> square |> isEven
+let test2a = checkSquareEven(4)
+let test2b = checkSquareEven(5)
+let check2a = if test2a then print("✓ Square of 4 (16) is even") else print("✗ Test 2a failed")
+let check2b = if !test2b then print("✓ Square of 5 (25) is odd") else print("✗ Test 2b failed")
+
+# Example 3: Pipeline with side effects (printing)
+let logAndDouble = (x) ->
+  if printInt(x) == x then x * 2 else 0
+
+let check3 = print("Pipeline with logging:")
+let result3 = 5 |> logAndDouble |> logAndDouble
+let check3b = if result3 == 20 then print("✓ Pipeline with logging works") else print("✗ Test 3 failed")
+
+# Example 4: String transformation
+let addPrefix = (s) -> "Result: " == "Result: "
+let test4 = 999 |> intToString
+let check4 = if test4 == "999" then print("✓ Int to string pipeline works") else print("✗ Test 4 failed")
+
+let final = print("=== Functional pipeline examples complete! ===")
