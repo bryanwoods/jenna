@@ -130,7 +130,7 @@ function generateDeclaration(decl: Declaration, ctx: CodegenContext): string | n
   if (decl.kind === 'Let') {
     return generateLetDeclaration(decl, ctx);
   }
-  if (decl.kind === 'Type') {
+  if (decl.kind === 'Type' || decl.kind === 'Record') {
     // Type declarations don't generate code
     return null;
   }
@@ -257,6 +257,23 @@ function generateExpression(expr: Expression, ctx: CodegenContext): string {
       return generateMatch(expr, ctx);
     case 'LetExpr':
       return generateLetExpr(expr, ctx);
+    case 'RecordLiteral': {
+      const fields = expr.fields
+        .map(f => `${f.name}: ${generateExpression(f.value, ctx)}`)
+        .join(', ');
+      // Records are plain JS objects (no tag) — parenthesized so a
+      // record can be an arrow function body
+      return `({ ${fields} })`;
+    }
+    case 'FieldAccess':
+      return `${generateExpression(expr.object, ctx)}.${expr.field}`;
+    case 'RecordUpdate': {
+      const record = generateExpression(expr.record, ctx);
+      const fields = expr.fields
+        .map(f => `${f.name}: ${generateExpression(f.value, ctx)}`)
+        .join(', ');
+      return `({ ...${record}, ${fields} })`;
+    }
     default:
       throw new Error(`Unknown expression kind: ${(expr as any).kind}`);
   }

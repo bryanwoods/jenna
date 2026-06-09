@@ -1,0 +1,39 @@
+# Records: named fields, functional updates, and JS-friendly data
+
+import { List, map, foldl } from "std/list"
+
+type Player = { name: String, score: Int, lives: Int }
+type Pair a b = { first: a, second: b }
+
+# Literals are inferred from their field names — no annotation needed
+let alice = { name: "Alice", score: 0, lives: 3 }
+
+# Field access works on inferred parameters too: 'score' uniquely
+# identifies Player among the record types in scope
+let award = (player, points) -> { player | score: player.score + points }
+
+# Updates are functional: the original is unchanged
+let afterRound = award(alice, 150)
+let msg1 = print(concat(alice.name, "'s scores:"))
+let out1 = printInt(alice.score)
+let out2 = printInt(afterRound.score)
+
+# Records can be polymorphic
+let entry = { first: "high score", second: 9000 }
+let msg2 = print(entry.first)
+let out3 = printInt(entry.second)
+
+# Records compile to plain JS objects, so externals can produce them
+external startingPlayer: (String) -> Player =
+  "(name) => ({ name, score: 0, lives: 3 })"
+
+let bob = startingPlayer("Bob")
+let msg3 = print(concat(bob.name, " joins with lives:"))
+let out4 = printInt(bob.lives)
+
+# And they compose with the rest of the language
+type Game = { players: List Player }
+let game = { players: Cons(afterRound, Cons(bob, Nil)) }
+let total = foldl(game.players, 0, (acc, p) -> acc + p.score)
+let msg4 = print("total score:")
+let out5 = printInt(total)

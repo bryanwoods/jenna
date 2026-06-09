@@ -95,6 +95,21 @@ Patterns nest (`Some(Ok(value))`), bind variables, and include wildcards.
 Non-exhaustive matches produce a compile-time warning naming the missing
 constructors.
 
+### Records
+
+```jenna
+type Player = { name: String, score: Int }
+
+let alice = { name: "Alice", score: 0 }          # inferred from field names
+let award = (p, pts) -> { p | score: p.score + pts }   # functional update
+let shown = concat(alice.name, "!")              # field access
+```
+
+Records are nominal and compile to plain JavaScript objects — which makes
+them the natural data type at the JS boundary (an `external` can return a
+record directly). Record types can be polymorphic:
+`type Pair a b = { first: a, second: b }`.
+
 ### Pipelines
 
 ```jenna
@@ -166,6 +181,7 @@ doubles as a reference for idiomatic code.
 | [`calculator.jn`](examples/calculator.jn) | an expression interpreter with `Result` error handling |
 | [`stdlib-tour.jn`](examples/stdlib-tour.jn) | the standard library |
 | [`js-interop.jn`](examples/js-interop.jn) | calling JavaScript with `external` |
+| [`records.jn`](examples/records.jn) | records, updates, and JS objects as records |
 | [`modules/`](examples/modules) | a multi-file program |
 | [`showcase.jn`](examples/showcase.jn) | everything at once |
 
@@ -190,9 +206,9 @@ type checking and no runtime type overhead.
 ## Status
 
 Jenna is a young language under active development. The core — inference,
-ADTs, pattern matching, modules, the prelude, JS interop — is complete and
-tested (140 tests, every example runs in CI). Records and richer interop
-data conversions are next; see [ROADMAP.md](ROADMAP.md).
+ADTs, pattern matching, records, modules, the prelude, JS interop — is
+complete and tested (163 tests, every example runs in CI). See
+[ROADMAP.md](ROADMAP.md) for what's next.
 
 ## Development
 

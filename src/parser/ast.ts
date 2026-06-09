@@ -17,7 +17,30 @@ export type Expression =
   | CallExpr
   | MatchExpr
   | ConstructorExpr
-  | LetExpr;
+  | LetExpr
+  | RecordLiteralExpr
+  | FieldAccessExpr
+  | RecordUpdateExpr;
+
+export interface RecordLiteralExpr {
+  kind: 'RecordLiteral';
+  location?: SourceLocation;
+  fields: Array<{ name: string; value: Expression }>;
+}
+
+export interface FieldAccessExpr {
+  kind: 'FieldAccess';
+  location?: SourceLocation;
+  object: Expression;
+  field: string;
+}
+
+export interface RecordUpdateExpr {
+  kind: 'RecordUpdate';
+  location?: SourceLocation;
+  record: Expression;
+  fields: Array<{ name: string; value: Expression }>;
+}
 
 export interface LiteralExpr {
   kind: 'Literal';
@@ -129,8 +152,27 @@ export interface WildcardPattern {
 export type Declaration =
   | LetDeclaration
   | TypeDeclaration
+  | RecordDeclaration
   | ImportDeclaration
   | ExternalDeclaration;
+
+/**
+ * Nominal record type: type Point = { x: Int, y: Int }
+ */
+export interface RecordDeclaration {
+  kind: 'Record';
+  location?: SourceLocation;
+  name: string;
+  typeParams: string[];
+  fields: RecordField[];
+  exported?: boolean;
+}
+
+export interface RecordField {
+  name: string;
+  annotation: TypeAnnotation;
+  location?: SourceLocation;
+}
 
 /**
  * Foreign (JavaScript) binding with a trusted type annotation.

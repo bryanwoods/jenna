@@ -19,6 +19,11 @@ import {
   TypeAnnotation as ASTTypeAnnotation,
   ImportDeclaration,
   ExternalDeclaration,
+  RecordDeclaration,
+  RecordField,
+  RecordLiteralExpr,
+  FieldAccessExpr,
+  RecordUpdateExpr,
 } from '../parser/ast.js';
 import { SourceLocation } from '../lexer/token.js';
 import {
@@ -34,6 +39,7 @@ import {
   prune,
   generalize,
   resetTypeVarCounter,
+  typeToString,
 } from './types.js';
 import { TypeEnvironment } from './environment.js';
 import { unify, TypeError } from './unify.js';
@@ -160,6 +166,21 @@ let constructorRegistry = new Map<string, ConstructorInfo>();
 let adtRegistry = new Map<string, ADTInfo>();
 
 /**
+ * Information about a declared (or imported) record type
+ */
+export interface RecordInfo {
+  typeParams: string[];
+  fields: RecordField[];
+}
+
+/**
+ * Registry of record types visible to the module being checked.
+ * Record types also appear in adtRegistry (they are nominal types and
+ * unify by name); this registry carries their field tables.
+ */
+let recordRegistry = new Map<string, RecordInfo>();
+
+/**
  * Create a type environment with built-in functions
  */
 function createStdlib(): TypeEnvironment {
@@ -263,6 +284,180 @@ function registerADT(decl: TypeDeclaration, origin?: string): void {
 }
 
 /**
+ * Register a record type declaration
+ */
+function registerRecord(decl: RecordDeclaration, origin?: string): void {
+  const existing = adtRegistry.get(decl.name);
+  if (existing && existing.origin !== origin) {
+    throw new TypeError(
+      `Type ${decl.name} conflicts with an imported type of the same name`,
+      decl.location
+    );
+  }
+
+  adtRegistry.set(decl.name, { typeParams: decl.typeParams, origin });
+  recordRegistry.set(decl.name, { typeParams: decl.typeParams, fields: decl.fields });
+
+  // Eagerly validate field annotations, mirroring ADT variants
+  const subst = new Map<string, Type>();
+  for (const param of decl.typeParams) {
+    subst.set(param, freshTypeVar());
+  }
+  for (const field of decl.fields) {
+    astTypeToType(field.annotation, subst);
+  }
+}
+
+/**
+ * Instantiate a record type with fresh type arguments.
+ * Returns the nominal type and the substitution for field lookups.
+ */
+function instantiateRecord(name: string, info: RecordInfo): { type: ADTType; subst: TypeSubstitution } {
+  const typeArgs = info.typeParams.map(() => freshTypeVar());
+  const subst = new Map<string, Type>();
+  info.typeParams.forEach((param, i) => subst.set(param, typeArgs[i]));
+  return { type: { kind: 'ADT', name, typeArgs }, subst };
+}
+
+/**
+ * Field lookup on a known record type instance
+ */
+function recordFieldType(recordType: ADTType, info: RecordInfo, fieldName: string): Type | undefined {
+  const field = info.fields.find(f => f.name === fieldName);
+  if (!field) {
+    return undefined;
+  }
+  const subst = new Map<string, Type>();
+  info.typeParams.forEach((param, i) => subst.set(param, recordType.typeArgs[i]));
+  // Validated at declaration; may reference the declaring module's types
+  return astTypeToType(field.annotation, subst, false);
+}
+
+/**
+ * Resolve an expression's type to a record type, using the registry to
+ * disambiguate unresolved type variables: if exactly one record type in
+ * scope has all the given fields, the variable resolves to it.
+ */
+function resolveRecordType(
+  type: Type,
+  fieldNames: string[],
+  location: SourceLocation | undefined,
+  what: string
+): { type: ADTType; info: RecordInfo } {
+  let pruned = prune(type);
+
+  if (pruned.kind === 'TypeVariable') {
+    const candidates = [...recordRegistry.entries()].filter(([, info]) =>
+      fieldNames.every(name => info.fields.some(f => f.name === name))
+    );
+    if (candidates.length === 1) {
+      const [name, info] = candidates[0];
+      const { type: recType } = instantiateRecord(name, info);
+      unify(pruned, recType);
+      pruned = prune(recType);
+    } else if (candidates.length === 0) {
+      throw new TypeError(
+        `No record type in scope has field${fieldNames.length > 1 ? 's' : ''} ${fieldNames.map(f => `'${f}'`).join(', ')}`,
+        location
+      );
+    } else {
+      const names = candidates.map(([n]) => n).join(', ');
+      throw new TypeError(
+        `Cannot tell which record type this is (could be ${names}); add a type annotation`,
+        location
+      );
+    }
+  }
+
+  if (pruned.kind === 'ADT') {
+    const info = recordRegistry.get(pruned.name);
+    if (info) {
+      return { type: pruned, info };
+    }
+  }
+
+  throw new TypeError(`Cannot ${what} on a value of type ${typeToString(pruned)} (not a record)`, location);
+}
+
+/**
+ * Infer the type of a record literal: the field-name set must match
+ * exactly one record type in scope
+ */
+function inferRecordLiteral(expr: RecordLiteralExpr, env: TypeEnvironment): Type {
+  const literalNames = expr.fields.map(f => f.name);
+  const nameSet = new Set(literalNames);
+
+  if (nameSet.size !== literalNames.length) {
+    throw new TypeError('Duplicate field in record literal', expr.location);
+  }
+
+  const candidates = [...recordRegistry.entries()].filter(
+    ([, info]) =>
+      info.fields.length === nameSet.size && info.fields.every(f => nameSet.has(f.name))
+  );
+
+  if (candidates.length === 0) {
+    throw new TypeError(
+      `No record type in scope has exactly the fields { ${literalNames.join(', ')} }`,
+      expr.location
+    );
+  }
+  if (candidates.length > 1) {
+    const names = candidates.map(([n]) => n).join(', ');
+    throw new TypeError(
+      `Record literal is ambiguous (could be ${names}); add a type annotation`,
+      expr.location
+    );
+  }
+
+  const [name, info] = candidates[0];
+  const { type, subst } = instantiateRecord(name, info);
+
+  for (const field of expr.fields) {
+    const declared = info.fields.find(f => f.name === field.name)!;
+    const fieldType = astTypeToType(declared.annotation, subst, false);
+    const valueType = inferExpression(field.value, env);
+    unify(valueType, fieldType);
+  }
+
+  return type;
+}
+
+/**
+ * Infer the type of a field access (point.x)
+ */
+function inferFieldAccess(expr: FieldAccessExpr, env: TypeEnvironment): Type {
+  const objectType = inferExpression(expr.object, env);
+  const { type, info } = resolveRecordType(objectType, [expr.field], expr.location, `access field '${expr.field}'`);
+
+  const fieldType = recordFieldType(type, info, expr.field);
+  if (!fieldType) {
+    throw new TypeError(`Record type ${type.name} has no field '${expr.field}'`, expr.location);
+  }
+  return fieldType;
+}
+
+/**
+ * Infer the type of a record update ({ p | x: 10 })
+ */
+function inferRecordUpdate(expr: RecordUpdateExpr, env: TypeEnvironment): Type {
+  const recordType = inferExpression(expr.record, env);
+  const updatedNames = expr.fields.map(f => f.name);
+  const { type, info } = resolveRecordType(recordType, updatedNames, expr.location, 'update fields');
+
+  for (const field of expr.fields) {
+    const fieldType = recordFieldType(type, info, field.name);
+    if (!fieldType) {
+      throw new TypeError(`Record type ${type.name} has no field '${field.name}'`, expr.location);
+    }
+    const valueType = inferExpression(field.value, env);
+    unify(valueType, fieldType);
+  }
+
+  return type;
+}
+
+/**
  * Infer the type of an expression
  *
  * Wraps the actual inference so that any type error bubbling up gets
@@ -310,6 +505,15 @@ function inferExpressionInner(expr: Expression, env: TypeEnvironment): Type {
 
     case 'LetExpr':
       return inferLetExpr(expr, env);
+
+    case 'RecordLiteral':
+      return inferRecordLiteral(expr, env);
+
+    case 'FieldAccess':
+      return inferFieldAccess(expr, env);
+
+    case 'RecordUpdate':
+      return inferRecordUpdate(expr, env);
 
     default:
       throw new TypeError(`Unknown expression kind: ${(expr as any).kind}`);
@@ -439,11 +643,16 @@ function inferLetExpr(expr: LetExpr, env: TypeEnvironment): Type {
 }
 
 /**
- * Infer the type of a function
+ * Infer the type of a function.
+ * paramHints (from a let annotation) seed parameter types so that the
+ * body can use them — e.g. field access on an annotated record param.
  */
-function inferFunction(expr: FunctionExpr, env: TypeEnvironment): Type {
-  // Create fresh type variables for parameters
-  const paramTypes: Type[] = expr.parameters.map(() => freshTypeVar());
+function inferFunction(expr: FunctionExpr, env: TypeEnvironment, paramHints?: Type[]): Type {
+  // Create fresh type variables for parameters (or use annotation hints)
+  const paramTypes: Type[] =
+    paramHints && paramHints.length === expr.parameters.length
+      ? paramHints
+      : expr.parameters.map(() => freshTypeVar());
 
   // Extend environment with parameter bindings
   const fnEnv = env.extend();
@@ -723,6 +932,8 @@ function inferDeclaration(decl: Declaration, env: TypeEnvironment, origin?: stri
     inferLetDeclaration(decl, env);
   } else if (decl.kind === 'Type') {
     registerADT(decl, origin);
+  } else if (decl.kind === 'Record') {
+    registerRecord(decl, origin);
   } else if (decl.kind === 'External') {
     inferExternalDeclaration(decl, env);
   }
@@ -775,23 +986,35 @@ function inferLetDeclaration(decl: LetDeclaration, env: TypeEnvironment): void {
   const bodyEnv = env.extend();
   bodyEnv.bind(decl.name, selfType);
 
-  // Infer the type of the value
-  const valueType = inferExpression(decl.value, bodyEnv);
-
-  // Unify the self type with the inferred type
-  unify(selfType, valueType);
-
-  // If there's a type annotation, unify with it
+  // Apply the annotation up front so it can guide inference of the
+  // value — in particular, annotated function parameters are seeded
+  // into the body (needed for record field access on parameters)
   if (decl.typeAnnotation) {
     const annotatedType = astTypeToType(decl.typeAnnotation);
-    try {
-      unify(valueType, annotatedType);
-    } catch (error) {
-      if (error instanceof TypeError && !error.location) {
-        error.location = decl.value.location ?? decl.location;
-      }
-      throw error;
+    unify(selfType, annotatedType);
+  }
+
+  // Infer the type of the value
+  let valueType: Type;
+  const annotated = prune(selfType);
+  if (
+    decl.value.kind === 'Function' &&
+    annotated.kind === 'Function' &&
+    annotated.parameters.length === decl.value.parameters.length
+  ) {
+    valueType = inferFunction(decl.value, bodyEnv, annotated.parameters);
+  } else {
+    valueType = inferExpression(decl.value, bodyEnv);
+  }
+
+  // Unify the self type (and so the annotation) with the inferred type
+  try {
+    unify(selfType, valueType);
+  } catch (error) {
+    if (error instanceof TypeError && !error.location) {
+      error.location = decl.value.location ?? decl.location;
     }
+    throw error;
   }
 
   // Generalize over type variables not free elsewhere in the
@@ -833,6 +1056,7 @@ export function inferTypes(ast: Program): Program {
   // Reset per-program state so ADTs from a previous compile don't leak in
   constructorRegistry = new Map();
   adtRegistry = new Map();
+  recordRegistry = new Map();
   warnings.length = 0;
 
   // Create environment with standard library
@@ -850,6 +1074,7 @@ export function inferTypes(ast: Program): Program {
 export interface ModuleExports {
   values: Map<string, TypeScheme>;
   types: Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>;
+  records: Map<string, RecordInfo>;
 }
 
 /**
@@ -867,7 +1092,9 @@ function bindImport(
 
   if (isTypeName) {
     const typeExport = moduleExports.types.get(name);
-    if (!typeExport) {
+    const recordExport = moduleExports.records.get(name);
+
+    if (!typeExport && !recordExport) {
       // Helpful hint when someone imports a constructor instead of its type
       for (const [typeName, t] of moduleExports.types) {
         if (t.constructors.some(c => c.name === name)) {
@@ -885,9 +1112,14 @@ function bindImport(
       throw new TypeError(`Imported type ${name} conflicts with another type of the same name`, location);
     }
 
-    adtRegistry.set(name, { typeParams: typeExport.typeParams, origin: resolvedPath });
-    for (const constructor of typeExport.constructors) {
-      constructorRegistry.set(constructor.name, constructor);
+    if (typeExport) {
+      adtRegistry.set(name, { typeParams: typeExport.typeParams, origin: resolvedPath });
+      for (const constructor of typeExport.constructors) {
+        constructorRegistry.set(constructor.name, constructor);
+      }
+    } else if (recordExport) {
+      adtRegistry.set(name, { typeParams: recordExport.typeParams, origin: resolvedPath });
+      recordRegistry.set(name, recordExport);
     }
   } else {
     const valueScheme = moduleExports.values.get(name);
@@ -921,6 +1153,7 @@ export function inferModules(
   for (const module of modules) {
     constructorRegistry = new Map();
     adtRegistry = new Map();
+    recordRegistry = new Map();
     const env = createStdlib();
 
     try {
@@ -950,6 +1183,7 @@ export function inferModules(
     // Record this module's exports for its importers
     const values = new Map<string, TypeScheme>();
     const types = new Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>();
+    const records = new Map<string, RecordInfo>();
     for (const decl of module.ast.declarations) {
       if ((decl.kind === 'Let' || decl.kind === 'External') && decl.exported) {
         values.set(decl.name, env.lookupScheme(decl.name)!);
@@ -958,9 +1192,11 @@ export function inferModules(
           .map(v => constructorRegistry.get(v.name))
           .filter((c): c is ConstructorInfo => c !== undefined);
         types.set(decl.name, { typeParams: decl.typeParams, constructors });
+      } else if (decl.kind === 'Record' && decl.exported) {
+        records.set(decl.name, recordRegistry.get(decl.name)!);
       }
     }
-    exportsByPath.set(module.path, { values, types });
+    exportsByPath.set(module.path, { values, types, records });
   }
 
   return exportsByPath;

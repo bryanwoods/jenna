@@ -14,7 +14,6 @@ import {
   LiteralPattern,
   ConstructorPattern,
   TypeAnnotation,
-  FunctionType,
 } from './ast.js';
 import { unexpectedToken } from './errors.js';
 
@@ -41,6 +40,13 @@ export class Parser {
    */
   private previous(): Token {
     return this.tokens[this.current - 1];
+  }
+
+  /**
+   * Look ahead past the current token
+   */
+  private peekNext(): Token {
+    return this.tokens[Math.min(this.current + 1, this.tokens.length - 1)];
   }
 
   /**
@@ -236,23 +242,29 @@ export class Parser {
 
   /**
    * Parse a type annotation
-   * Int, String, Option a, (Int, Int) -> Int
+   * Int, String, Option a, List Player, (Int, Int) -> Int
+   *
+   * greedy controls whether an uppercase identifier is consumed as a
+   * type argument. Everywhere a type is delimited (annotations, record
+   * fields, function types) we parse greedily, so 'List Player' means
+   * List applied to Player. Inside ADT variants we don't, so
+   * 'Branch Tree Tree' stays three separate argument types.
    */
-  private typeAnnotation(): TypeAnnotation {
-    // Check for function type with parentheses
+  private typeAnnotation(greedy: boolean = true): TypeAnnotation {
+    // Function type or parenthesized (grouped) type
     if (this.check(TokenType.LPAREN)) {
       return this.functionType();
     }
 
     // Type name or type variable
-    return this.simpleType();
+    return this.simpleType(greedy);
   }
 
   /**
    * Parse a simple type (primitive, type variable, or custom type)
-   * Int, a, Option a, Result a e
+   * Int, a, Option a, Result a e, List Player (greedy)
    */
-  private simpleType(): TypeAnnotation {
+  private simpleType(greedy: boolean): TypeAnnotation {
     const token = this.consume(TokenType.IDENTIFIER, 'type name');
     const name = token.value;
 
@@ -276,22 +288,31 @@ export class Parser {
     // Otherwise, it's a custom type
     // Check for type arguments
     const typeArgs: TypeAnnotation[] = [];
-    while (this.check(TokenType.IDENTIFIER)) {
+    for (;;) {
+      // Parenthesized argument: Option (List Int), Option ((Int) -> Int)
+      if (greedy && this.check(TokenType.LPAREN)) {
+        typeArgs.push(this.functionType());
+        continue;
+      }
+
+      if (!this.check(TokenType.IDENTIFIER)) {
+        break;
+      }
+
       const nextToken = this.peek();
-
-      // Stop at delimiter tokens
-      if (this.check(TokenType.ARROW, TokenType.COMMA, TokenType.RPAREN, TokenType.PIPE)) {
+      if (nextToken.value === 'let' || nextToken.value === 'type') {
         break;
       }
 
-      // Stop if next identifier is uppercase (another concrete type)
-      // This prevents greedy consumption: Branch Tree Tree is parsed as
-      // Branch, Tree, Tree (three separate types) not Branch (Tree Tree)
-      if (nextToken.value[0] === nextToken.value[0].toUpperCase()) {
+      // Outside greedy contexts, stop at uppercase identifiers so ADT
+      // variants parse 'Branch Tree Tree' as three separate types
+      if (!greedy && nextToken.value[0] === nextToken.value[0].toUpperCase()) {
         break;
       }
 
-      typeArgs.push(this.simpleType());
+      // Arguments themselves bind tightly (non-greedy): 'Pair Int String'
+      // is Pair applied to Int and String
+      typeArgs.push(this.simpleType(false));
     }
 
     return {
@@ -303,12 +324,13 @@ export class Parser {
   }
 
   /**
-   * Parse a function type
+   * Parse a function type or a parenthesized type
    * (Int, Int) -> Int
    * (String) -> Bool
    * () -> Int
+   * (List Int)            grouped type, no arrow
    */
-  private functionType(): FunctionType {
+  private functionType(): TypeAnnotation {
     this.consume(TokenType.LPAREN, '(');
 
     const parameters: TypeAnnotation[] = [];
@@ -320,8 +342,16 @@ export class Parser {
     }
 
     this.consume(TokenType.RPAREN, ')');
-    this.consume(TokenType.ARROW, '->');
 
+    // No arrow: this was a parenthesized (grouped) type
+    if (!this.check(TokenType.ARROW)) {
+      if (parameters.length === 1) {
+        return parameters[0];
+      }
+      throw unexpectedToken("'->' after function type parameters", this.peek());
+    }
+
+    this.consume(TokenType.ARROW, '->');
     const returnType = this.typeAnnotation();
 
     return {
@@ -520,14 +550,27 @@ export class Parser {
   }
 
   /**
-   * Parse call
-   * f(a, b)
+   * Parse call and field access (postfix)
+   * f(a, b), point.x, f(p).y
    */
   private call(): Expression {
     let expr = this.primary();
 
-    while (this.match(TokenType.LPAREN)) {
-      expr = this.finishCall(expr);
+    for (;;) {
+      if (this.match(TokenType.LPAREN)) {
+        expr = this.finishCall(expr);
+      } else if (this.match(TokenType.DOT)) {
+        const dotLocation = this.previous().location;
+        const fieldToken = this.consume(TokenType.IDENTIFIER, 'field name');
+        expr = {
+          kind: 'FieldAccess',
+          object: expr,
+          field: fieldToken.value,
+          location: dotLocation,
+        };
+      } else {
+        break;
+      }
     }
 
     return expr;
@@ -621,6 +664,11 @@ export class Parser {
     // Match expression
     if (this.match(TokenType.MATCH)) {
       return this.matchExpression();
+    }
+
+    // Record literal { x: 1, y: 2 } or record update { p | x: 1 }
+    if (this.check(TokenType.LBRACE)) {
+      return this.recordExpression();
     }
 
     // Function expression
@@ -782,6 +830,46 @@ export class Parser {
   }
 
   /**
+   * Parse a record literal or record update
+   * { x: 1, y: 2 }       literal (first token after '{' is 'field:')
+   * { p | x: 10 }        update of expression p
+   */
+  private recordExpression(): Expression {
+    const location = this.peek().location;
+    this.consume(TokenType.LBRACE, '{');
+
+    // Literal when we see 'IDENT :', otherwise an update expression
+    const isLiteral =
+      this.check(TokenType.IDENTIFIER) && this.peekNext().type === TokenType.COLON;
+
+    if (isLiteral) {
+      const fields = this.recordFieldValues();
+      this.consume(TokenType.RBRACE, '}');
+      return { kind: 'RecordLiteral', fields, location };
+    }
+
+    const record = this.expression();
+    this.consume(TokenType.PIPE, "'|' (record update is { record | field: value })");
+    const fields = this.recordFieldValues();
+    this.consume(TokenType.RBRACE, '}');
+    return { kind: 'RecordUpdate', record, fields, location };
+  }
+
+  /**
+   * Parse comma-separated 'field: expression' pairs
+   */
+  private recordFieldValues(): Array<{ name: string; value: Expression }> {
+    const fields: Array<{ name: string; value: Expression }> = [];
+    do {
+      const nameToken = this.consume(TokenType.IDENTIFIER, 'field name');
+      this.consume(TokenType.COLON, ':');
+      const value = this.expression();
+      fields.push({ name: nameToken.value, value });
+    } while (this.match(TokenType.COMMA));
+    return fields;
+  }
+
+  /**
    * Parse a grouped expression
    * (expr)
    */
@@ -797,7 +885,7 @@ export class Parser {
    * type Option a = Some a | None
    * type Result a e = Ok a | Err e
    */
-  private typeDeclaration(): import('./ast.js').TypeDeclaration {
+  private typeDeclaration(): import('./ast.js').TypeDeclaration | import('./ast.js').RecordDeclaration {
     const location = this.previous().location;
     const nameToken = this.consume(TokenType.IDENTIFIER, 'type name');
     const name = nameToken.value;
@@ -809,6 +897,11 @@ export class Parser {
     }
 
     this.consume(TokenType.EQUAL, '=');
+
+    // Record type: type Point = { x: Int, y: Int }
+    if (this.check(TokenType.LBRACE)) {
+      return this.recordDeclaration(name, typeParams, location);
+    }
 
     // Parse variants
     const variants: import('./ast.js').Variant[] = [];
@@ -835,6 +928,36 @@ export class Parser {
   }
 
   /**
+   * Parse the body of a record type declaration
+   * { x: Int, y: Int }
+   */
+  private recordDeclaration(
+    name: string,
+    typeParams: string[],
+    location: import('../lexer/token.js').SourceLocation
+  ): import('./ast.js').RecordDeclaration {
+    this.consume(TokenType.LBRACE, '{');
+
+    const fields: import('./ast.js').RecordField[] = [];
+    do {
+      const fieldToken = this.consume(TokenType.IDENTIFIER, 'field name');
+      this.consume(TokenType.COLON, ':');
+      const annotation = this.typeAnnotation();
+      fields.push({ name: fieldToken.value, annotation, location: fieldToken.location });
+    } while (this.match(TokenType.COMMA));
+
+    this.consume(TokenType.RBRACE, '}');
+
+    return {
+      kind: 'Record',
+      name,
+      typeParams,
+      fields,
+      location,
+    };
+  }
+
+  /**
    * Parse a variant (constructor)
    * Some a
    * None
@@ -855,7 +978,8 @@ export class Parser {
       if (peek.value === 'let' || peek.value === 'type') {
         break;  // Start of next declaration
       }
-      variantArgs.push(this.typeAnnotation());
+      // Non-greedy: 'Branch Tree Tree' is three separate argument types
+      variantArgs.push(this.typeAnnotation(false));
     }
 
     return {

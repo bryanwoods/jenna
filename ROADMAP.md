@@ -26,14 +26,17 @@ novel features.
   at the annotated arity so JS argument quirks can't cross the boundary.
   Externals are polymorphic, exportable from modules, and compile to real
   ESM imports.
+- **v0.5 — Records.** Nominal record types with inferred literals,
+  field access, and functional update (`{ p | x: 10 }`). Records compile
+  to plain JavaScript objects, so externals can produce and consume them
+  directly — the FFI's natural data carrier. Type annotations also gained
+  concrete type arguments (`List Player`) and parenthesized grouping.
 
 ## Next
 
-- **Richer interop data** — today's FFI covers primitives and functions
-  over them. Converting JS arrays/objects to Jenna lists/records (and
-  back) is the follow-up, and pairs naturally with records.
-- **Records** — ADTs currently have positional fields only. Named fields are
-  the biggest ergonomic gap for programs of any size.
+- **Record patterns** — destructure records in `match` and bindings.
+- **Richer interop data** — JS arrays ↔ Jenna lists at the FFI boundary
+  (objects are already covered by records).
 - **Map and Set** in the standard library.
 - **Strings as more than tokens** — char access, slicing, classification.
 - **Tail-call optimization** (or loop lowering) — recursion currently

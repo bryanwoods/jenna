@@ -34,6 +34,7 @@ program      ::= declaration*
 declaration  ::= import_decl
                | 'export'? let_decl
                | 'export'? type_decl
+               | 'export'? record_decl
                | 'export'? external_decl
 
 import_decl  ::= 'import' '{' import_names? '}' 'from' STRING
@@ -47,6 +48,10 @@ external_decl ::= 'external' IDENTIFIER ':' type_annotation '=' STRING
 type_decl    ::= 'type' IDENTIFIER type_param* '=' '|'? variant ('|' variant)*
 type_param   ::= IDENTIFIER                      (* lowercase *)
 variant      ::= IDENTIFIER type_annotation*     (* uppercase name *)
+
+record_decl  ::= 'type' IDENTIFIER type_param* '='
+                 '{' record_field (',' record_field)* '}'
+record_field ::= IDENTIFIER ':' type_annotation
 ```
 
 Import paths starting with `./` or `../` resolve relative to the importing
@@ -67,8 +72,16 @@ function_type   ::= '(' (type_annotation (',' type_annotation)*)? ')'
 
 simple_type     ::= 'Int' | 'Float' | 'String' | 'Bool'   (* primitives *)
                   | IDENTIFIER                            (* lowercase: type variable *)
-                  | IDENTIFIER simple_type*               (* uppercase: ADT, e.g. Option a *)
+                  | IDENTIFIER type_argument*             (* uppercase: ADT/record, e.g. Option a, List Player *)
+
+type_argument   ::= simple_type | '(' type_annotation ')'
 ```
+
+In delimited contexts (let annotations, record fields, function types)
+type application is greedy: `List Player` applies `List` to `Player`.
+Inside ADT variants it is not, so `Branch Tree Tree` remains three
+separate argument types; parenthesize to apply (`Branch (Tree a) (Tree a)`
+is not yet supported there — use lowercase parameters).
 
 ## Expressions
 
@@ -86,7 +99,7 @@ relational     ::= additive (('<' | '<=' | '>' | '>=') additive)*
 additive       ::= multiplicative (('+' | '-') multiplicative)*
 multiplicative ::= unary (('*' | '/' | '%') unary)*
 unary          ::= ('!' | '-') unary | call
-call           ::= primary ('(' arguments? ')')*
+call           ::= primary ('(' arguments? ')' | '.' IDENTIFIER)*
 arguments      ::= expression (',' expression)*
 
 primary        ::= INTEGER | FLOAT | STRING | BOOLEAN
@@ -95,8 +108,14 @@ primary        ::= INTEGER | FLOAT | STRING | BOOLEAN
                  | match_expr
                  | function_expr
                  | constructor_expr
+                 | record_literal
+                 | record_update
                  | IDENTIFIER
                  | '(' expression ')'
+
+record_literal ::= '{' field_value (',' field_value)* '}'
+record_update  ::= '{' expression '|' field_value (',' field_value)* '}'
+field_value    ::= IDENTIFIER ':' expression
 
 if_expr        ::= 'if' expression 'then' expression 'else' expression
 

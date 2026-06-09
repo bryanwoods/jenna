@@ -51,6 +51,7 @@ export enum TokenType {
   PIPE = 'PIPE',           // |
   LBRACE = 'LBRACE',       // {
   RBRACE = 'RBRACE',       // }
+  DOT = 'DOT',             // .
 
   // Special
   NEWLINE = 'NEWLINE',
