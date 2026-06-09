@@ -1,6 +1,4 @@
-# Binary Tree Example
-# Demonstrates the fix for greedy type application bug
-# Now we can use: Branch Tree Tree (same type twice!)
+# Binary trees: recursive ADTs and structural recursion
 
 type Tree = Leaf Int | Branch Tree Tree
 

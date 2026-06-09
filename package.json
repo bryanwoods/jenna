@@ -1,12 +1,32 @@
 {
   "name": "jenna",
-  "version": "0.2.0",
-  "description": "A statically-typed functional language with type inference that compiles to JavaScript",
-  "main": "dist/index.js",
+  "version": "0.3.0",
+  "description": "A statically-typed functional programming language with full type inference that compiles to JavaScript",
+  "keywords": [
+    "compiler",
+    "programming-language",
+    "functional",
+    "type-inference",
+    "hindley-milner",
+    "pattern-matching",
+    "algebraic-data-types"
+  ],
+  "author": "Bryan Woods",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bryanwoods/jenna.git"
+  },
   "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "jenna": "dist/cli/index.js"
   },
+  "files": [
+    "dist",
+    "lib"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -14,13 +34,9 @@
     "test:watch": "vitest",
     "jenna": "node dist/cli/index.js"
   },
-  "keywords": ["compiler", "programming-language", "functional", "type-inference"],
-  "author": "",
-  "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.10.0",
     "typescript": "^5.3.3",
     "vitest": "^1.0.4"
-  },
-  "dependencies": {}
+  }
 }

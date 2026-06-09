@@ -1,191 +1,120 @@
-# Jenna Grammar Specification
+# Jenna Grammar
 
-This document defines the formal grammar for Jenna using Extended Backus-Naur Form (EBNF).
+The grammar of Jenna in EBNF, matching the implementation in
+`src/lexer` and `src/parser`.
 
-## Lexical Grammar
+## Lexical grammar
 
-```
-# Comments
-COMMENT ::= '#' [^\n]* '\n'
+```ebnf
+COMMENT     ::= '#' [^\n]*
 
-# Literals
-INTEGER ::= [0-9]+
-FLOAT ::= [0-9]+ '.' [0-9]+
-STRING ::= '"' (CHAR | ESCAPE_SEQUENCE)* '"'
-BOOLEAN ::= 'true' | 'false'
+INTEGER     ::= [0-9]+
+FLOAT       ::= [0-9]+ '.' [0-9]+
+STRING      ::= '"' (CHAR | ESCAPE)* '"'        (* escapes: \n \t \r \\ \" *)
+BOOLEAN     ::= 'true' | 'false'
 
-# Identifiers and Keywords
-IDENTIFIER ::= [a-zA-Z_][a-zA-Z0-9_]*
-KEYWORD ::= 'let' | 'if' | 'then' | 'else' | 'true' | 'false'
+IDENTIFIER  ::= [a-zA-Z_][a-zA-Z0-9_]*
 
-# Operators
-BINARY_OP ::= '+' | '-' | '*' | '/' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '&&' | '||'
-UNARY_OP ::= '!' | '-'
-
-# Delimiters
-ARROW ::= '->'
-LPAREN ::= '('
-RPAREN ::= ')'
-COMMA ::= ','
-COLON ::= ':'
-EQUAL ::= '='
+KEYWORD     ::= 'let' | 'in' | 'if' | 'then' | 'else' | 'true' | 'false'
+              | 'type' | 'match' | 'with' | 'end' | 'import' | 'export'
 ```
 
-## Syntactic Grammar
+`from` is a *contextual* keyword: it is only special inside an import
+declaration and remains usable as an ordinary identifier.
 
-### Program Structure
+Identifiers starting with an uppercase letter name types and constructors;
+lowercase identifiers name values and type variables.
 
-```
-Program ::= Declaration*
-```
+## Declarations
 
-### Declarations
+```ebnf
+program      ::= declaration*
 
-```
-Declaration ::= LetDeclaration
+declaration  ::= import_decl
+               | 'export'? let_decl
+               | 'export'? type_decl
 
-LetDeclaration ::= 'let' IDENTIFIER TypeAnnotation? '=' Expression
-```
+import_decl  ::= 'import' '{' import_names? '}' 'from' STRING
+import_names ::= IDENTIFIER (',' IDENTIFIER)*
 
-### Type Annotations
+let_decl     ::= 'let' IDENTIFIER (':' type_annotation)? '=' expression
 
-```
-TypeAnnotation ::= ':' Type
-
-Type ::= PrimitiveType
-       | FunctionType
-
-PrimitiveType ::= 'Int' | 'Float' | 'String' | 'Bool'
-
-FunctionType ::= '(' Type (',' Type)* ')' '->' Type
+type_decl    ::= 'type' IDENTIFIER type_param* '=' '|'? variant ('|' variant)*
+type_param   ::= IDENTIFIER                      (* lowercase *)
+variant      ::= IDENTIFIER type_annotation*     (* uppercase name *)
 ```
 
-### Expressions
+Import paths starting with `./` or `../` resolve relative to the importing
+file; bare paths such as `"std/list"` resolve into the bundled standard
+library. The `.jn` extension may be omitted.
 
-```
-Expression ::= LiteralExpr
-             | IdentifierExpr
-             | IfExpr
-             | FunctionExpr
-             | CallExpr
-             | BinaryExpr
-             | UnaryExpr
-             | '(' Expression ')'
+## Type annotations
 
-LiteralExpr ::= INTEGER | FLOAT | STRING | BOOLEAN
+```ebnf
+type_annotation ::= function_type | simple_type
 
-IdentifierExpr ::= IDENTIFIER
+function_type   ::= '(' (type_annotation (',' type_annotation)*)? ')'
+                    '->' type_annotation
 
-IfExpr ::= 'if' Expression 'then' Expression 'else' Expression
-
-FunctionExpr ::= '(' Parameters ')' '->' Expression
-
-Parameters ::= IDENTIFIER (',' IDENTIFIER)*
-             | ε
-
-CallExpr ::= PrimaryExpr '(' Arguments ')'
-
-Arguments ::= Expression (',' Expression)*
-            | ε
-
-BinaryExpr ::= Expression BINARY_OP Expression
-
-UnaryExpr ::= UNARY_OP Expression
-
-PrimaryExpr ::= LiteralExpr
-              | IdentifierExpr
-              | '(' Expression ')'
+simple_type     ::= 'Int' | 'Float' | 'String' | 'Bool'   (* primitives *)
+                  | IDENTIFIER                            (* lowercase: type variable *)
+                  | IDENTIFIER simple_type*               (* uppercase: ADT, e.g. Option a *)
 ```
 
-## Operator Precedence
+## Expressions
 
-From highest to lowest:
+Listed from lowest to highest precedence; all binary operators are
+left-associative.
 
-1. **Primary** - literals, identifiers, parentheses
-2. **Call** - function application `f(x)`
-3. **Unary** - `!`, `-` (negation)
-4. **Multiplicative** - `*`, `/`
-5. **Additive** - `+`, `-`
-6. **Relational** - `<`, `<=`, `>`, `>=`
-7. **Equality** - `==`, `!=`
-8. **Logical AND** - `&&`
-9. **Logical OR** - `||`
+```ebnf
+expression     ::= pipeline
 
-## Operator Associativity
+pipeline       ::= logical_or ('|>' logical_or)*
+logical_or     ::= logical_and ('||' logical_and)*
+logical_and    ::= equality ('&&' equality)*
+equality       ::= relational (('==' | '!=') relational)*
+relational     ::= additive (('<' | '<=' | '>' | '>=') additive)*
+additive       ::= multiplicative (('+' | '-') multiplicative)*
+multiplicative ::= unary (('*' | '/' | '%') unary)*
+unary          ::= ('!' | '-') unary | call
+call           ::= primary ('(' arguments? ')')*
+arguments      ::= expression (',' expression)*
 
-- Binary operators are **left-associative**
-- Function application is **left-associative**
-- Function arrow `->` is **right-associative**
+primary        ::= INTEGER | FLOAT | STRING | BOOLEAN
+                 | if_expr
+                 | let_expr
+                 | match_expr
+                 | function_expr
+                 | constructor_expr
+                 | IDENTIFIER
+                 | '(' expression ')'
 
-## Examples
+if_expr        ::= 'if' expression 'then' expression 'else' expression
 
-### Simple Let Binding
-```jenna
-let x = 5
+let_expr       ::= 'let' IDENTIFIER '=' expression 'in' expression
+
+function_expr  ::= '(' (IDENTIFIER (',' IDENTIFIER)*)? ')' '->' expression
+
+constructor_expr ::= IDENTIFIER ('(' arguments? ')')?   (* uppercase name *)
+
+match_expr     ::= 'match' expression 'with'
+                   '|'? match_case ('|' match_case)*
+                   'end'
+match_case     ::= pattern '->' expression
 ```
 
-### Function Definition
-```jenna
-let add = (a, b) -> a + b
+## Patterns
+
+```ebnf
+pattern             ::= literal_pattern
+                      | '_'                                 (* wildcard *)
+                      | IDENTIFIER                          (* lowercase: binding *)
+                      | constructor_pattern
+
+literal_pattern     ::= INTEGER | FLOAT | STRING | BOOLEAN
+
+constructor_pattern ::= IDENTIFIER ('(' pattern (',' pattern)* ')')?
 ```
 
-### Function with Type Annotations
-```jenna
-let add: (Int, Int) -> Int = (a, b) -> a + b
-```
-
-### If Expression
-```jenna
-let max = (a, b) -> if a > b then a else b
-```
-
-### Function Call
-```jenna
-let result = add(2, 3)
-```
-
-### Recursive Function
-```jenna
-let factorial = (n) ->
-  if n == 0 then
-    1
-  else
-    n * factorial(n - 1)
-```
-
-### Complex Expression
-```jenna
-let compute = (x, y) ->
-  if x > 0 && y > 0 then
-    x * y + 10
-  else
-    x + y
-```
-
-## Notes
-
-1. **Whitespace**: Whitespace (spaces, tabs) is not significant except as token separators. Newlines are currently not significant.
-
-2. **Comments**: Single-line comments start with `#` and continue to the end of the line.
-
-3. **Expressions are values**: Everything is an expression, including `if-then-else`, which returns a value.
-
-4. **No statements**: Jenna has no statements, only expressions and declarations.
-
-5. **Type inference**: Type annotations are optional. The type system will infer types when not explicitly provided.
-
-6. **Function syntax**: Functions use the `->` arrow syntax: `(params) -> body`
-
-7. **No blocks yet**: In Phase 1, function bodies and if branches are single expressions. Multi-expression blocks will come later.
-
-## Future Extensions
-
-The following will be added in later phases:
-
-- **Pattern matching**: `match expr with | pattern -> expr`
-- **Algebraic data types**: `type Option a = Some a | None`
-- **Records/Objects**: `{ x: 10, y: 20 }`
-- **Lists**: `[1, 2, 3]`
-- **Let expressions**: `let x = 5 in x + 1`
-- **Module system**: `import`, `export`
-- **Macros**: Compile-time metaprogramming (Phase 3)
+Patterns nest arbitrarily: `Some(Ok(value))` matches an `Option (Result a e)`.
+Match expressions on ADTs are checked for exhaustiveness at compile time.

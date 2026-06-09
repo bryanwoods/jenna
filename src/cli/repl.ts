@@ -1,12 +1,13 @@
 import * as readline from 'readline';
 import { compile } from '../index.js';
+import { jennaVersion } from './version.js';
 
 /**
  * REPL for Jenna
  * Provides an interactive environment for evaluating Jenna expressions
  */
 export function startRepl(): void {
-  console.log('Jenna REPL v0.2.0');
+  console.log(`Jenna REPL v${jennaVersion()}`);
   console.log('Type expressions to evaluate them. Use Ctrl+C or Ctrl+D to exit.');
   console.log('');
 

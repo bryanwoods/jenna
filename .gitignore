@@ -7,9 +7,6 @@ dist/
 *.js.map
 *.d.ts
 
-# Keep example files
-!examples/**/*.js
-
 # Tests
 coverage/
 

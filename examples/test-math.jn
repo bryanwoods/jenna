@@ -1,8 +1,0 @@
-# Test basic math
-let val1 = 7 - 2 * 3
-let val2 = 7 - (7 / 3) * 3
-
-let test1 = if val1 == 1 then print("7 - 2*3 = 1") else print("7 - 2*3 != 1")
-let test2 = if val2 == 1 then print("7 - (7/3)*3 = 1") else print("7 - (7/3)*3 != 1")
-let test3 = if val2 == 0 then print("val2 = 0") else print("val2 != 0")
-let test4 = if 1 == 0 then print("1 == 0 is true???") else print("1 == 0 is false")

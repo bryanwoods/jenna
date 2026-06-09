@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { compileProject, formatError } from '../index.js';
 import { startRepl } from './repl.js';
+import { jennaVersion } from './version.js';
 
 /**
  * Format a compile error against the source of the module it came from
@@ -57,7 +58,7 @@ Examples:
  * Print version information
  */
 function printVersion(): void {
-  console.log('Jenna v0.2.0');
+  console.log(`Jenna v${jennaVersion()}`);
 }
 
 /**
