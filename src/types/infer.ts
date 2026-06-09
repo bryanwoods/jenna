@@ -105,11 +105,12 @@ function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new
   if (astType.kind === 'CustomType') {
     const adt = adtRegistry.get(astType.name);
     if (!adt) {
-      throw new TypeError(`Unknown type: ${astType.name}`);
+      throw new TypeError(`Unknown type: ${astType.name}`, astType.location);
     }
     if (astType.arguments.length !== adt.typeParams.length) {
       throw new TypeError(
-        `Type ${astType.name} expects ${adt.typeParams.length} type argument(s), got ${astType.arguments.length}`
+        `Type ${astType.name} expects ${adt.typeParams.length} type argument(s), got ${astType.arguments.length}`,
+        astType.location
       );
     }
     const typeArgs = astType.arguments.map(arg => astTypeToType(arg, subst));
@@ -203,8 +204,22 @@ function registerADT(decl: TypeDeclaration): void {
 
 /**
  * Infer the type of an expression
+ *
+ * Wraps the actual inference so that any type error bubbling up gets
+ * tagged with the location of the innermost expression that caused it.
  */
 function inferExpression(expr: Expression, env: TypeEnvironment): Type {
+  try {
+    return inferExpressionInner(expr, env);
+  } catch (error) {
+    if (error instanceof TypeError && !error.location && expr.location) {
+      error.location = expr.location;
+    }
+    throw error;
+  }
+}
+
+function inferExpressionInner(expr: Expression, env: TypeEnvironment): Type {
   switch (expr.kind) {
     case 'Literal':
       return inferLiteral(expr);
@@ -263,7 +278,7 @@ function inferLiteral(expr: LiteralExpr): Type {
 function inferIdentifier(expr: IdentifierExpr, env: TypeEnvironment): Type {
   const type = env.lookup(expr.name);
   if (!type) {
-    throw new TypeError(`Undefined variable: ${expr.name}`);
+    throw new TypeError(`Undefined variable: ${expr.name}`, expr.location);
   }
   return type;
 }
@@ -440,7 +455,7 @@ function inferConstructor(expr: ConstructorExpr, env: TypeEnvironment): Type {
   const constructor = constructorRegistry.get(expr.name);
 
   if (!constructor) {
-    throw new TypeError(`Unknown constructor: ${expr.name}`);
+    throw new TypeError(`Unknown constructor: ${expr.name}`, expr.location);
   }
 
   // Instantiate the constructor with fresh type variables
@@ -457,7 +472,8 @@ function inferConstructor(expr: ConstructorExpr, env: TypeEnvironment): Type {
   // Check arity
   if (inferredArgTypes.length !== argTypes.length) {
     throw new TypeError(
-      `Constructor ${expr.name} expects ${argTypes.length} arguments, got ${inferredArgTypes.length}`
+      `Constructor ${expr.name} expects ${argTypes.length} arguments, got ${inferredArgTypes.length}`,
+      expr.location
     );
   }
 
@@ -498,7 +514,7 @@ function inferMatch(expr: MatchExpr, env: TypeEnvironment): Type {
   }
 
   // Check exhaustiveness
-  checkExhaustiveness(matchedType, expr.cases);
+  checkExhaustiveness(matchedType, expr.cases, expr.location);
 
   return prune(firstType);
 }
@@ -527,7 +543,11 @@ function extractCoveredConstructors(pattern: Pattern): Set<string> | null {
 /**
  * Check if match expression is exhaustive
  */
-function checkExhaustiveness(matchedType: Type, cases: MatchCase[]): void {
+function checkExhaustiveness(
+  matchedType: Type,
+  cases: MatchCase[],
+  location?: { line: number; column: number }
+): void {
   const prunedType = prune(matchedType);
 
   // Only check ADT types
@@ -572,7 +592,8 @@ function checkExhaustiveness(matchedType: Type, cases: MatchCase[]): void {
   // Emit warning if not exhaustive
   if (missingConstructors.length > 0) {
     const missing = missingConstructors.join(', ');
-    warn(`Non-exhaustive pattern match on type ${prunedType.name}. Missing cases: ${missing}`);
+    const where = location ? ` (line ${location.line})` : '';
+    warn(`Non-exhaustive pattern match on type ${prunedType.name}${where}. Missing cases: ${missing}`);
   }
 }
 
@@ -602,7 +623,7 @@ function inferPattern(pattern: Pattern, expectedType: Type, env: TypeEnvironment
       // Look up constructor
       const constructor = constructorRegistry.get(pattern.constructor);
       if (!constructor) {
-        throw new TypeError(`Unknown constructor in pattern: ${pattern.constructor}`);
+        throw new TypeError(`Unknown constructor in pattern: ${pattern.constructor}`, pattern.location);
       }
 
       // Instantiate constructor with fresh type variables
@@ -614,7 +635,8 @@ function inferPattern(pattern: Pattern, expectedType: Type, env: TypeEnvironment
       // Check pattern arguments
       if (pattern.arguments.length !== patternArgTypes.length) {
         throw new TypeError(
-          `Constructor ${pattern.constructor} expects ${patternArgTypes.length} arguments, got ${pattern.arguments.length}`
+          `Constructor ${pattern.constructor} expects ${patternArgTypes.length} arguments, got ${pattern.arguments.length}`,
+          pattern.location
         );
       }
 
@@ -659,7 +681,14 @@ function inferLetDeclaration(decl: LetDeclaration, env: TypeEnvironment): void {
   // If there's a type annotation, unify with it
   if (decl.typeAnnotation) {
     const annotatedType = astTypeToType(decl.typeAnnotation);
-    unify(valueType, annotatedType);
+    try {
+      unify(valueType, annotatedType);
+    } catch (error) {
+      if (error instanceof TypeError && !error.location) {
+        error.location = decl.value.location ?? decl.location;
+      }
+      throw error;
+    }
   }
 
   // Update binding with the pruned type
@@ -687,9 +716,13 @@ export function inferTypes(ast: Program): Program {
       inferDeclaration(decl, env);
     } catch (error) {
       if (error instanceof TypeError) {
-        // Add context about which declaration failed
+        // Add context about which declaration failed, keeping the most
+        // specific location we have
         if (decl.kind === 'Let') {
-          throw new TypeError(`In declaration of '${decl.name}': ${error.message}`);
+          throw new TypeError(
+            `In declaration of '${decl.name}': ${error.message}`,
+            error.location ?? decl.location
+          );
         }
         throw error;
       }

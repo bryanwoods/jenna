@@ -4,7 +4,8 @@ import { parse as parserParse } from './parser/parser.js';
 import { inferTypes as typeInfer } from './types/infer.js';
 import { generateCode as codegenGenerate } from './codegen/codegen.js';
 
-export { tokenize } from './lexer/lexer.js';
+export { tokenize, LexError } from './lexer/lexer.js';
+export { formatError } from './diagnostics.js';
 export { parse } from './parser/parser.js';
 export { inferTypes } from './types/infer.js';
 export { generateCode } from './codegen/codegen.js';

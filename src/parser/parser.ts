@@ -124,6 +124,7 @@ export class Parser {
    * let x: Int = 5
    */
   private letDeclaration(): LetDeclaration {
+    const location = this.previous().location;
     const nameToken = this.consume(TokenType.IDENTIFIER, 'identifier');
     const name = nameToken.value;
 
@@ -141,6 +142,7 @@ export class Parser {
       name,
       typeAnnotation,
       value,
+      location,
     };
   }
 
@@ -208,6 +210,7 @@ export class Parser {
       kind: 'CustomType',
       name,
       arguments: typeArgs,
+      location: token.location,
     };
   }
 
@@ -256,10 +259,12 @@ export class Parser {
 
     while (this.match(TokenType.PIPE_RIGHT)) {
       const operator = '|>';
+      const location = this.previous().location;
       const right = this.logicalOr();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -277,10 +282,12 @@ export class Parser {
 
     while (this.match(TokenType.OR)) {
       const operator = '||';
+      const location = this.previous().location;
       const right = this.logicalAnd();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -298,10 +305,12 @@ export class Parser {
 
     while (this.match(TokenType.AND)) {
       const operator = '&&';
+      const location = this.previous().location;
       const right = this.equality();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -319,10 +328,12 @@ export class Parser {
 
     while (this.match(TokenType.DOUBLE_EQUAL, TokenType.NOT_EQUAL)) {
       const operator = this.previous().value as '==' | '!=';
+      const location = this.previous().location;
       const right = this.relational();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -340,10 +351,12 @@ export class Parser {
 
     while (this.match(TokenType.LESS, TokenType.LESS_EQUAL, TokenType.GREATER, TokenType.GREATER_EQUAL)) {
       const operator = this.previous().value as '<' | '<=' | '>' | '>=';
+      const location = this.previous().location;
       const right = this.additive();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -361,10 +374,12 @@ export class Parser {
 
     while (this.match(TokenType.PLUS, TokenType.MINUS)) {
       const operator = this.previous().value as '+' | '-';
+      const location = this.previous().location;
       const right = this.multiplicative();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -382,10 +397,12 @@ export class Parser {
 
     while (this.match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT)) {
       const operator = this.previous().value as '*' | '/' | '%';
+      const location = this.previous().location;
       const right = this.unary();
       expr = {
         kind: 'Binary',
         operator,
+        location,
         left: expr,
         right,
       };
@@ -401,11 +418,13 @@ export class Parser {
   private unary(): Expression {
     if (this.match(TokenType.NOT, TokenType.MINUS)) {
       const operator = this.previous().value as '!' | '-';
+      const location = this.previous().location;
       const operand = this.unary();
       return {
         kind: 'Unary',
         operator,
         operand,
+        location,
       };
     }
 
@@ -444,6 +463,7 @@ export class Parser {
       kind: 'Call',
       callee,
       arguments: args,
+      location: callee.location,
     };
   }
 
@@ -452,12 +472,15 @@ export class Parser {
    * literals, identifiers, if, functions, parentheses
    */
   private primary(): Expression {
+    const location = this.peek().location;
+
     // Literals
     if (this.match(TokenType.INT)) {
       return {
         kind: 'Literal',
         value: parseInt(this.previous().value, 10),
         literalType: 'int',
+        location,
       };
     }
 
@@ -466,6 +489,7 @@ export class Parser {
         kind: 'Literal',
         value: parseFloat(this.previous().value),
         literalType: 'float',
+        location,
       };
     }
 
@@ -474,6 +498,7 @@ export class Parser {
         kind: 'Literal',
         value: this.previous().value,
         literalType: 'string',
+        location,
       };
     }
 
@@ -482,6 +507,7 @@ export class Parser {
         kind: 'Literal',
         value: true,
         literalType: 'boolean',
+        location,
       };
     }
 
@@ -490,6 +516,7 @@ export class Parser {
         kind: 'Literal',
         value: false,
         literalType: 'boolean',
+        location,
       };
     }
 
@@ -575,12 +602,14 @@ export class Parser {
           kind: 'Constructor',
           name,
           arguments: args,
+          location,
         };
       } else {
         // Regular identifier
         return {
           kind: 'Identifier',
           name,
+          location,
         };
       }
     }
@@ -593,6 +622,7 @@ export class Parser {
    * if condition then expr1 else expr2
    */
   private ifExpression(): IfExpr {
+    const location = this.previous().location;
     const condition = this.expression();
     this.consume(TokenType.THEN, 'then');
     const thenBranch = this.expression();
@@ -604,6 +634,7 @@ export class Parser {
       condition,
       thenBranch,
       elseBranch,
+      location,
     };
   }
 
@@ -612,6 +643,7 @@ export class Parser {
    * let x = expr1 in expr2
    */
   private letExpression(): import('./ast.js').LetExpr {
+    const location = this.previous().location;
     const nameToken = this.consume(TokenType.IDENTIFIER, 'identifier');
     const name = nameToken.value;
 
@@ -626,6 +658,7 @@ export class Parser {
       name,
       value,
       body,
+      location,
     };
   }
 
@@ -635,6 +668,7 @@ export class Parser {
    * () -> 42
    */
   private functionExpression(): FunctionExpr {
+    const location = this.peek().location;
     this.consume(TokenType.LPAREN, '(');
 
     const parameters: string[] = [];
@@ -655,6 +689,7 @@ export class Parser {
       kind: 'Function',
       parameters,
       body,
+      location,
     };
   }
 
@@ -675,6 +710,7 @@ export class Parser {
    * type Result a e = Ok a | Err e
    */
   private typeDeclaration(): import('./ast.js').TypeDeclaration {
+    const location = this.previous().location;
     const nameToken = this.consume(TokenType.IDENTIFIER, 'type name');
     const name = nameToken.value;
 
@@ -706,6 +742,7 @@ export class Parser {
       name,
       typeParams,
       variants,
+      location,
     };
   }
 
@@ -747,6 +784,7 @@ export class Parser {
    * end
    */
   private matchExpression(): MatchExpr {
+    const location = this.previous().location;
     const expr = this.expression();
     this.consume(TokenType.WITH, 'with');
 
@@ -772,6 +810,7 @@ export class Parser {
       kind: 'Match',
       expr,
       cases,
+      location,
     };
   }
 
@@ -898,6 +937,7 @@ export class Parser {
       kind: 'ConstructorPattern',
       constructor,
       arguments: args,
+      location: nameToken.location,
     };
   }
 }

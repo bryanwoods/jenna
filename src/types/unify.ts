@@ -1,10 +1,14 @@
 import { Type, TypeVariable, prune, occursInType, typeToString } from './types.js';
+import { SourceLocation } from '../lexer/token.js';
 
 /**
  * Type error during unification
  */
 export class TypeError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    public location?: SourceLocation
+  ) {
     super(message);
     this.name = 'TypeError';
   }

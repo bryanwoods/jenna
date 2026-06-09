@@ -2,6 +2,19 @@ import { Token, TokenType, SourceLocation } from './token.js';
 import { getKeywordType } from './keywords.js';
 
 /**
+ * Lexical error with location information
+ */
+export class LexError extends Error {
+  constructor(
+    message: string,
+    public location: SourceLocation
+  ) {
+    super(message);
+    this.name = 'LexError';
+  }
+}
+
+/**
  * Lexer for Jenna source code
  */
 export class Lexer {
@@ -140,7 +153,7 @@ export class Lexer {
     }
 
     if (this.current() === '\0') {
-      throw new Error(`Unterminated string at line ${location.line}, column ${location.column}`);
+      throw new LexError('Unterminated string', location);
     }
 
     this.advance(); // consume closing quote
@@ -299,7 +312,7 @@ export class Lexer {
       case ':': return { type: TokenType.COLON, value: ':', location };
       case '|': return { type: TokenType.PIPE, value: '|', location };
       default:
-        throw new Error(`Unexpected character '${singleChar}' at line ${location.line}, column ${location.column}`);
+        throw new LexError(`Unexpected character '${singleChar}'`, location);
     }
   }
 

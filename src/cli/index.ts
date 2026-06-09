@@ -2,7 +2,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { compile } from '../index.js';
+import { compile, formatError } from '../index.js';
 import { startRepl } from './repl.js';
 
 /**
@@ -70,9 +70,8 @@ function compileCommand(inputPath: string, outputPath?: string): void {
   try {
     jsCode = compile(source);
   } catch (error) {
-    console.error('Compilation failed:');
     if (error instanceof Error) {
-      console.error(error.message);
+      console.error(formatError(error, source, inputPath));
     } else {
       console.error(String(error));
     }
@@ -103,9 +102,8 @@ function runCommand(inputPath: string): void {
   try {
     jsCode = compile(source);
   } catch (error) {
-    console.error('Compilation failed:');
     if (error instanceof Error) {
-      console.error(error.message);
+      console.error(formatError(error, source, inputPath));
     } else {
       console.error(String(error));
     }

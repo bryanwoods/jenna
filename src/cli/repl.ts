@@ -151,7 +151,9 @@ export function startRepl(): void {
 
     } catch (error) {
       if (error instanceof Error) {
-        console.error(`Error: ${error.message}`);
+        // Hide the internal __repl_result wrapper from error messages
+        const message = error.message.replace(/^In declaration of '__repl_result': /, '');
+        console.error(`Error: ${message}`);
       } else {
         console.error(`Error: ${String(error)}`);
       }

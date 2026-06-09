@@ -2,6 +2,8 @@
  * Abstract Syntax Tree node types for Jenna
  */
 
+import { SourceLocation } from '../lexer/token.js';
+
 export type ASTNode = Expression | Declaration;
 
 // Expressions
@@ -19,17 +21,20 @@ export type Expression =
 
 export interface LiteralExpr {
   kind: 'Literal';
+  location?: SourceLocation;
   value: number | string | boolean;
   literalType: 'int' | 'float' | 'string' | 'boolean';
 }
 
 export interface IdentifierExpr {
   kind: 'Identifier';
+  location?: SourceLocation;
   name: string;
 }
 
 export interface BinaryExpr {
   kind: 'Binary';
+  location?: SourceLocation;
   operator: '+' | '-' | '*' | '/' | '%' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '&&' | '||' | '|>';
   left: Expression;
   right: Expression;
@@ -37,12 +42,14 @@ export interface BinaryExpr {
 
 export interface UnaryExpr {
   kind: 'Unary';
+  location?: SourceLocation;
   operator: '!' | '-';
   operand: Expression;
 }
 
 export interface IfExpr {
   kind: 'If';
+  location?: SourceLocation;
   condition: Expression;
   thenBranch: Expression;
   elseBranch: Expression;
@@ -50,18 +57,21 @@ export interface IfExpr {
 
 export interface FunctionExpr {
   kind: 'Function';
+  location?: SourceLocation;
   parameters: string[];
   body: Expression;
 }
 
 export interface CallExpr {
   kind: 'Call';
+  location?: SourceLocation;
   callee: Expression;
   arguments: Expression[];
 }
 
 export interface MatchExpr {
   kind: 'Match';
+  location?: SourceLocation;
   expr: Expression;
   cases: MatchCase[];
 }
@@ -73,12 +83,14 @@ export interface MatchCase {
 
 export interface ConstructorExpr {
   kind: 'Constructor';
+  location?: SourceLocation;
   name: string;
   arguments: Expression[];
 }
 
 export interface LetExpr {
   kind: 'LetExpr';
+  location?: SourceLocation;
   name: string;
   value: Expression;
   body: Expression;
@@ -104,6 +116,7 @@ export interface IdentifierPattern {
 
 export interface ConstructorPattern {
   kind: 'ConstructorPattern';
+  location?: SourceLocation;
   constructor: string;
   arguments: Pattern[];
 }
@@ -117,6 +130,7 @@ export type Declaration = LetDeclaration | TypeDeclaration;
 
 export interface LetDeclaration {
   kind: 'Let';
+  location?: SourceLocation;
   name: string;
   typeAnnotation?: TypeAnnotation;
   value: Expression;
@@ -124,6 +138,7 @@ export interface LetDeclaration {
 
 export interface TypeDeclaration {
   kind: 'Type';
+  location?: SourceLocation;
   name: string;
   typeParams: string[];
   variants: Variant[];
@@ -159,6 +174,7 @@ export interface TypeVar {
 
 export interface CustomType {
   kind: 'CustomType';
+  location?: SourceLocation;
   name: string;
   arguments: TypeAnnotation[];
 }
