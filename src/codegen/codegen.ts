@@ -293,16 +293,18 @@ function generateCall(expr: CallExpr, ctx: CodegenContext): string {
  * Constructors become JavaScript objects with a __tag property
  */
 function generateConstructor(expr: ConstructorExpr, ctx: CodegenContext): string {
+  // Parenthesized so a constructor can be an arrow function body
+  // ((x) => ({...}) rather than (x) => {...} which parses as a block)
   if (expr.arguments.length === 0) {
     // Nullary constructor - just an object with a tag
-    return `{ __tag: "${expr.name}" }`;
+    return `({ __tag: "${expr.name}" })`;
   }
 
   // Constructor with arguments
   const args = expr.arguments.map(arg => generateExpression(arg, ctx));
   const fields = args.map((arg, i) => `_${i}: ${arg}`).join(', ');
 
-  return `{ __tag: "${expr.name}", ${fields} }`;
+  return `({ __tag: "${expr.name}", ${fields} })`;
 }
 
 /**

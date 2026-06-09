@@ -1,7 +1,15 @@
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { tokenize } from '../lexer/lexer.js';
 import { parse } from '../parser/parser.js';
 import { Program, ImportDeclaration } from '../parser/ast.js';
+
+/**
+ * Root of the bundled standard library written in Jenna.
+ * Lives at <package root>/lib, two levels up from this file in both
+ * src/ (tests) and dist/ (compiled) layouts.
+ */
+const STDLIB_ROOT = fileURLToPath(new URL('../../lib', import.meta.url));
 
 /**
  * A resolved module: parsed source plus its place in the dependency graph
@@ -41,10 +49,18 @@ export type FileReader = (absolutePath: string) => string;
 /**
  * Resolve an import path relative to the importing module.
  * Appends .jn when the extension is omitted.
+ *
+ * Relative paths (./x, ../x) resolve against the importer's directory;
+ * bare paths like "std/list" resolve into the bundled standard library.
  */
 export function resolveImportPath(importerPath: string, importPath: string): string {
   const withExt = importPath.endsWith('.jn') ? importPath : `${importPath}.jn`;
-  return path.resolve(path.dirname(importerPath), withExt);
+
+  if (withExt.startsWith('./') || withExt.startsWith('../') || path.isAbsolute(withExt)) {
+    return path.resolve(path.dirname(importerPath), withExt);
+  }
+
+  return path.resolve(STDLIB_ROOT, withExt);
 }
 
 /**

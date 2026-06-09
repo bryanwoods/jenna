@@ -1,0 +1,26 @@
+# Demonstrating Jenna's standard library prelude
+
+import { List, map, filter, range, sum, length } from "std/list"
+import { Option, unwrapOr, mapOption } from "std/option"
+import { join } from "std/string"
+
+# Build [1..10], keep the evens, square them, and sum
+let evensSquaredSum = range(1, 10)
+  |> (l) -> filter(l, (x) -> x % 2 == 0)
+  |> (l) -> map(l, (x) -> x * x)
+  |> sum
+
+let msg1 = print("sum of squares of evens in [1..10]:")
+let out1 = printInt(evensSquaredSum)
+
+# Polymorphism: the same map works on strings
+let names = Cons("jenna", Cons("ml", Cons("ruby", Nil)))
+let msg2 = print(join(map(names, (n) -> concat(n, "!")), ", "))
+
+# Option from the prelude
+let maybe = mapOption(Some(20), (x) -> x * 2)
+let msg3 = print("unwrapped option:")
+let out3 = printInt(unwrapOr(maybe, 0))
+
+let msg4 = print("list lengths:")
+let out4 = printInt(length(names))

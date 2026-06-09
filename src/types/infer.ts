@@ -199,6 +199,20 @@ function createStdlib(): TypeEnvironment {
     returnType: IntType,
   });
 
+  // concat: (String, String) -> String
+  env.bind('concat', {
+    kind: 'Function',
+    parameters: [StringType, StringType],
+    returnType: StringType,
+  });
+
+  // stringLength: (String) -> Int
+  env.bind('stringLength', {
+    kind: 'Function',
+    parameters: [StringType],
+    returnType: IntType,
+  });
+
   return env;
 }
 

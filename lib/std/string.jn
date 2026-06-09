@@ -1,0 +1,17 @@
+# std/string — string helpers built on the List type
+
+import { List, foldl } from "./list"
+
+# Join a List String with a separator: join(Cons("a", Cons("b", Nil)), ", ") = "a, b"
+export let join = (lst, sep) ->
+  match lst with
+  | Nil -> ""
+  | Cons(h, t) -> foldl(t, h, (acc, s) -> concat(concat(acc, sep), s))
+  end
+
+# Repeat a string n times
+export let repeat = (s, n) ->
+  if n <= 0 then
+    ""
+  else
+    concat(s, repeat(s, n - 1))

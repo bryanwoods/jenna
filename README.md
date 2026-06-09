@@ -338,7 +338,7 @@ Jenna uses Hindley-Milner type inference, which means:
 
 - **Types are inferred automatically** - You don't need to write type annotations
 - **Type annotations are checked** - If you do provide them, the compiler verifies them
-- **Polymorphic types** - Functions can work with multiple types
+- **Let-polymorphism** - A let-bound function like `let id = (x) -> x` can be used at many types in one program; lambda parameters stay monomorphic, as in ML
 - **No runtime type checking** - All type errors are caught at compile time
 
 ### Built-in Types
@@ -362,9 +362,33 @@ Jenna uses Hindley-Milner type inference, which means:
 
 - `intToString(n: Int) -> String` - Convert integer to string
 
+### String Functions
+
+- `concat(a: String, b: String) -> String` - Concatenate two strings
+- `stringLength(s: String) -> Int` - Length of a string
+
 ### Math Functions
 
 - `mod(a: Int, b: Int) -> Int` - Modulo operation (also available as `%` operator)
+
+### Prelude Modules
+
+A standard library written in Jenna itself ships with the compiler and
+is imported with bare `std/` paths:
+
+```jenna
+import { List, map, filter, range, sum } from "std/list"
+import { Option, unwrapOr, mapOption, andThen } from "std/option"
+import { Result, mapResult, unwrapResult } from "std/result"
+import { join, repeat } from "std/string"
+```
+
+- `std/list` — `List`, `map`, `filter`, `foldl`, `length`, `append`, `reverse`, `head`, `range`, `sum`, `any`, `all`
+- `std/option` — `Option`, `unwrapOr`, `mapOption`, `andThen`, `isSome`, `isNone`
+- `std/result` — `Result`, `mapResult`, `unwrapResult`, `isOk`, `isErr`, `okToOption`
+- `std/string` — `join`, `repeat`
+
+See `examples/stdlib-prelude.jn` for a working tour.
 
 ### Operators
 
@@ -449,7 +473,9 @@ npm run test:watch
 **Remaining for Phase 2:**
 - [x] Better error messages with source snippets
 - [x] Module system (import/export with privacy and cycle detection)
-- [ ] Immutable data structures in stdlib (List, Map, Set)
+- [x] Let-polymorphism (generalized type schemes)
+- [x] Stdlib prelude written in Jenna (`std/list`, `std/option`, `std/result`, `std/string`)
+- [ ] Map/Set data structures
 - [ ] Redundancy checking for patterns
 
 ### Phase 3: The Unique Feature (v0.3) 🚧 Planned

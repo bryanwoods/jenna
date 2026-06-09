@@ -1,0 +1,32 @@
+# std/option — optional values
+
+export type Option a = Some a | None
+
+# Extract the value, or return the fallback if None
+export let unwrapOr = (opt, fallback) ->
+  match opt with
+  | Some(x) -> x
+  | None -> fallback
+  end
+
+# Transform the contained value, if any
+export let mapOption = (opt, f) ->
+  match opt with
+  | Some(x) -> Some(f(x))
+  | None -> None
+  end
+
+# Chain computations that may themselves return None
+export let andThen = (opt, f) ->
+  match opt with
+  | Some(x) -> f(x)
+  | None -> None
+  end
+
+export let isSome = (opt) ->
+  match opt with
+  | Some(_) -> true
+  | None -> false
+  end
+
+export let isNone = (opt) -> !isSome(opt)

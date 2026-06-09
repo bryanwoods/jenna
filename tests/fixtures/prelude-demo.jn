@@ -1,0 +1,28 @@
+import { List, map, filter, range, sum, length, reverse, head, append, foldl, any, all } from "std/list"
+import { Option, unwrapOr, mapOption, andThen, isSome } from "std/option"
+import { Result, mapResult, unwrapResult, isOk, okToOption } from "std/result"
+import { join, repeat } from "std/string"
+
+# List
+let nums = range(1, 5)
+let a = printInt(sum(nums))
+let b = printInt(sum(map(nums, (x) -> x * 10)))
+let c = printInt(length(filter(nums, (x) -> x > 2)))
+let d = printInt(unwrapOr(head(reverse(nums)), -1))
+let e = printInt(length(append(nums, nums)))
+let f = printInt(foldl(nums, 0, (acc, x) -> acc + x * x))
+let g = printBool(any(nums, (x) -> x == 3))
+let h = printBool(all(nums, (x) -> x > 0))
+
+# Option
+let i = printInt(unwrapOr(mapOption(Some(5), (x) -> x + 1), 0))
+let j = printBool(isSome(andThen(Some(2), (x) -> if x > 1 then Some(x) else None)))
+
+# Result
+let k = printInt(unwrapResult(mapResult(Ok(10), (x) -> x * 3), -1))
+let l = printBool(isOk(Err("boom")))
+let m = printBool(isSome(okToOption(Ok(1))))
+
+# String
+let n = print(join(map(nums, intToString), "-"))
+let o = print(repeat("ab", 3))

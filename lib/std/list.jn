@@ -1,0 +1,68 @@
+# std/list — immutable singly-linked lists
+
+import { Option } from "./option"
+
+export type List a = Cons a List a | Nil
+
+# Transform every element
+export let map = (lst, f) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(h, t) -> Cons(f(h), map(t, f))
+  end
+
+# Keep elements satisfying the predicate
+export let filter = (lst, pred) ->
+  match lst with
+  | Nil -> Nil
+  | Cons(h, t) -> if pred(h) then Cons(h, filter(t, pred)) else filter(t, pred)
+  end
+
+# Left fold: foldl(Cons(1, Cons(2, Nil)), 0, f) = f(f(0, 1), 2)
+export let foldl = (lst, init, f) ->
+  match lst with
+  | Nil -> init
+  | Cons(h, t) -> foldl(t, f(init, h), f)
+  end
+
+export let length = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(_, t) -> 1 + length(t)
+  end
+
+export let append = (a, b) ->
+  match a with
+  | Nil -> b
+  | Cons(h, t) -> Cons(h, append(t, b))
+  end
+
+export let reverse = (lst) -> foldl(lst, Nil, (acc, h) -> Cons(h, acc))
+
+# First element, if the list is non-empty
+export let head = (lst) ->
+  match lst with
+  | Nil -> None
+  | Cons(h, _) -> Some(h)
+  end
+
+# Integers from lo to hi inclusive
+export let range = (lo, hi) ->
+  if lo > hi then
+    Nil
+  else
+    Cons(lo, range(lo + 1, hi))
+
+export let sum = (lst) -> foldl(lst, 0, (acc, x) -> acc + x)
+
+export let any = (lst, pred) ->
+  match lst with
+  | Nil -> false
+  | Cons(h, t) -> pred(h) || any(t, pred)
+  end
+
+export let all = (lst, pred) ->
+  match lst with
+  | Nil -> true
+  | Cons(h, t) -> pred(h) && all(t, pred)
+  end

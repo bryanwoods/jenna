@@ -43,6 +43,20 @@ export function mod(a: number, b: number): number {
 }
 
 /**
+ * Concatenate two strings
+ */
+export function concat(a: string, b: string): string {
+  return a + b;
+}
+
+/**
+ * Length of a string in characters
+ */
+export function stringLength(s: string): number {
+  return s.length;
+}
+
+/**
  * Generate the runtime preamble to be included in compiled code
  */
 export function generateRuntimePreamble(): string {
@@ -52,6 +66,8 @@ const printInt = (n) => { console.log(n); return n; };
 const printBool = (b) => { console.log(b); return b; };
 const intToString = (n) => n.toString();
 const mod = (a, b) => a % b;
+const concat = (a, b) => a + b;
+const stringLength = (s) => s.length;
 
 `;
 }

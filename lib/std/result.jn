@@ -1,0 +1,34 @@
+# std/result — computations that can fail with an error value
+
+import { Option } from "./option"
+
+export type Result a e = Ok a | Err e
+
+# Transform the success value, passing errors through
+export let mapResult = (res, f) ->
+  match res with
+  | Ok(v) -> Ok(f(v))
+  | Err(e) -> Err(e)
+  end
+
+# Extract the success value, or return the fallback on error
+export let unwrapResult = (res, fallback) ->
+  match res with
+  | Ok(v) -> v
+  | Err(_) -> fallback
+  end
+
+export let isOk = (res) ->
+  match res with
+  | Ok(_) -> true
+  | Err(_) -> false
+  end
+
+export let isErr = (res) -> !isOk(res)
+
+# Drop the error, keeping the success as an Option
+export let okToOption = (res) ->
+  match res with
+  | Ok(v) -> Some(v)
+  | Err(_) -> None
+  end
