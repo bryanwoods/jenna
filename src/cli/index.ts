@@ -2,6 +2,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import { compileProject, formatError } from '../index.js';
 import { startRepl } from './repl.js';
 import { jennaVersion } from './version.js';
@@ -18,7 +19,8 @@ function reportCompileError(error: unknown, entryPath: string): never {
     try {
       if (modulePath) {
         source = fs.readFileSync(modulePath, 'utf-8');
-        displayPath = path.relative(process.cwd(), modulePath);
+        const relative = path.relative(process.cwd(), modulePath);
+        displayPath = relative.startsWith('..') ? modulePath : relative;
       } else {
         source = fs.readFileSync(entryPath, 'utf-8');
       }
@@ -100,7 +102,7 @@ function compileCommand(inputPath: string, outputPath?: string): void {
 /**
  * Run command
  */
-function runCommand(inputPath: string): void {
+async function runCommand(inputPath: string): Promise<void> {
   // Compile (resolving any imports relative to the entry file)
   let jsCode: string;
   try {
@@ -109,11 +111,25 @@ function runCommand(inputPath: string): void {
     reportCompileError(error, inputPath);
   }
 
-  // Execute
+  // Execute. Bundles with ESM imports (from 'external ... from' FFI
+  // declarations) must run as a real module; we write them next to the
+  // entry file so npm packages resolve against the project's
+  // node_modules. Plain bundles run directly.
   try {
-    // Use Function constructor to execute in a clean scope
-    const fn = new Function(jsCode);
-    fn();
+    if (/^import /m.test(jsCode)) {
+      const entryDir = path.dirname(path.resolve(inputPath));
+      const tempFile = path.join(entryDir, `.jenna-run-${process.pid}.mjs`);
+      fs.writeFileSync(tempFile, jsCode);
+      try {
+        await import(pathToFileURL(tempFile).href);
+      } finally {
+        fs.rmSync(tempFile, { force: true });
+      }
+    } else {
+      // Use Function constructor to execute in a clean scope
+      const fn = new Function(jsCode);
+      fn();
+    }
   } catch (error) {
     console.error('Runtime error:');
     if (error instanceof Error) {
@@ -166,7 +182,10 @@ function main(): void {
     }
 
     const inputPath = args[1];
-    runCommand(inputPath);
+    runCommand(inputPath).catch((error) => {
+      console.error(String(error));
+      process.exit(1);
+    });
   } else {
     console.error(`Error: Unknown command '${command}'`);
     printUsage();

@@ -18,6 +18,7 @@ import {
   Pattern,
   TypeAnnotation as ASTTypeAnnotation,
   ImportDeclaration,
+  ExternalDeclaration,
 } from '../parser/ast.js';
 import { SourceLocation } from '../lexer/token.js';
 import {
@@ -722,8 +723,45 @@ function inferDeclaration(decl: Declaration, env: TypeEnvironment, origin?: stri
     inferLetDeclaration(decl, env);
   } else if (decl.kind === 'Type') {
     registerADT(decl, origin);
+  } else if (decl.kind === 'External') {
+    inferExternalDeclaration(decl, env);
   }
   // Imports are bound before declarations are checked; nothing to do here
+}
+
+/**
+ * Collect type variable names appearing in an annotation
+ */
+function typeVarNames(astType: ASTTypeAnnotation, into: Set<string> = new Set()): Set<string> {
+  if (astType.kind === 'TypeVar') {
+    into.add(astType.name);
+  } else if (astType.kind === 'FunctionType') {
+    for (const p of astType.parameters) {
+      typeVarNames(p, into);
+    }
+    typeVarNames(astType.returnType, into);
+  } else if (astType.kind === 'CustomType') {
+    for (const a of astType.arguments) {
+      typeVarNames(a, into);
+    }
+  }
+  return into;
+}
+
+/**
+ * Bind an external declaration. The annotation is trusted: it becomes
+ * the binding's type scheme, with each named type variable mapped to a
+ * single fresh variable and then quantified (so externals can be
+ * polymorphic, and 'a' means the same type at every occurrence).
+ */
+function inferExternalDeclaration(decl: ExternalDeclaration, env: TypeEnvironment): void {
+  const subst = new Map<string, Type>();
+  for (const name of typeVarNames(decl.typeAnnotation)) {
+    subst.set(name, freshTypeVar());
+  }
+
+  const type = astTypeToType(decl.typeAnnotation, subst);
+  env.bindScheme(decl.name, generalize(type, env.freeTypeVars()));
 }
 
 /**
@@ -772,7 +810,7 @@ function checkDeclarations(declarations: Declaration[], env: TypeEnvironment, or
       if (error instanceof TypeError) {
         // Add context about which declaration failed, keeping the most
         // specific location we have
-        if (decl.kind === 'Let') {
+        if (decl.kind === 'Let' || decl.kind === 'External') {
           throw new TypeError(
             `In declaration of '${decl.name}': ${error.message}`,
             error.location ?? decl.location
@@ -913,7 +951,7 @@ export function inferModules(
     const values = new Map<string, TypeScheme>();
     const types = new Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>();
     for (const decl of module.ast.declarations) {
-      if (decl.kind === 'Let' && decl.exported) {
+      if ((decl.kind === 'Let' || decl.kind === 'External') && decl.exported) {
         values.set(decl.name, env.lookupScheme(decl.name)!);
       } else if (decl.kind === 'Type' && decl.exported) {
         const constructors = decl.variants

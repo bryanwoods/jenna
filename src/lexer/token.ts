@@ -22,6 +22,7 @@ export enum TokenType {
   END = 'END',
   IMPORT = 'IMPORT',
   EXPORT = 'EXPORT',
+  EXTERNAL = 'EXTERNAL',
 
   // Operators
   PLUS = 'PLUS',           // +

@@ -17,6 +17,7 @@ export const KEYWORDS: Map<string, TokenType> = new Map([
   ['end', TokenType.END],
   ['import', TokenType.IMPORT],
   ['export', TokenType.EXPORT],
+  ['external', TokenType.EXTERNAL],
 ]);
 
 /**

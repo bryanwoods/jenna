@@ -126,7 +126,28 @@ export interface WildcardPattern {
 }
 
 // Declarations
-export type Declaration = LetDeclaration | TypeDeclaration | ImportDeclaration;
+export type Declaration =
+  | LetDeclaration
+  | TypeDeclaration
+  | ImportDeclaration
+  | ExternalDeclaration;
+
+/**
+ * Foreign (JavaScript) binding with a trusted type annotation.
+ *
+ * Without `fromModule`, jsValue is a JavaScript expression evaluated in
+ * module scope ("Math.abs"). With `fromModule`, jsValue names a member
+ * imported from that module ("readFileSync" from "node:fs").
+ */
+export interface ExternalDeclaration {
+  kind: 'External';
+  location?: SourceLocation;
+  name: string;
+  typeAnnotation: TypeAnnotation;
+  jsValue: string;
+  fromModule?: string;
+  exported?: boolean;
+}
 
 export interface ImportedName {
   name: string;

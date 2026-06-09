@@ -100,16 +100,26 @@ export function startRepl(): void {
       return;
     }
 
+    if (trimmed.startsWith('external') && /\bfrom\s*"/.test(trimmed)) {
+      console.error(
+        'Error: external ... from "module" is not supported in the REPL ' +
+        '(module imports need a file; expression externals like ' +
+        'external abs: (Int) -> Int = "Math.abs" work here)'
+      );
+      return;
+    }
+
     try {
       // Check if this is a declaration to save
       const isLetDeclaration = trimmed.startsWith('let ') && !trimmed.includes(' in ');
       const isTypeDeclaration = trimmed.startsWith('type ');
+      const isExternalDeclaration = trimmed.startsWith('external ');
 
       // Build the full source with all previous declarations
       let fullSource: string;
       let shouldPrintResult = false;
 
-      if (isLetDeclaration || isTypeDeclaration) {
+      if (isLetDeclaration || isTypeDeclaration || isExternalDeclaration) {
         // Add this declaration to our history
         declarations.push(trimmed);
         // Compile with all declarations

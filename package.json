@@ -1,6 +1,6 @@
 {
   "name": "jenna",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A statically-typed functional programming language with full type inference that compiles to JavaScript",
   "keywords": [
     "compiler",

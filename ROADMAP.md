@@ -20,14 +20,18 @@ novel features.
   - Let-polymorphism: generalized type schemes, instantiated per use site.
   - A standard library written in Jenna itself: `std/list`, `std/option`,
     `std/result`, `std/string`.
+- **v0.4 — JavaScript interop.** `external` declarations bind JS values —
+  global expressions or named imports from npm packages and node builtins —
+  under trusted, mandatory type annotations. Function externals are wrapped
+  at the annotated arity so JS argument quirks can't cross the boundary.
+  Externals are polymorphic, exportable from modules, and compile to real
+  ESM imports.
 
 ## Next
 
-- **JavaScript interop** *(next up)*. Call into npm packages from Jenna with
-  explicitly typed foreign declarations, keeping inference sound. This is
-  the gate between "complete language" and "useful language", and needs a
-  design pass first. It also unlocks file I/O and process arguments — the
-  prerequisites for writing real tools in Jenna.
+- **Richer interop data** — today's FFI covers primitives and functions
+  over them. Converting JS arrays/objects to Jenna lists/records (and
+  back) is the follow-up, and pairs naturally with records.
 - **Records** — ADTs currently have positional fields only. Named fields are
   the biggest ergonomic gap for programs of any size.
 - **Map and Set** in the standard library.

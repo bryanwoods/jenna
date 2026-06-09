@@ -17,6 +17,7 @@ IDENTIFIER  ::= [a-zA-Z_][a-zA-Z0-9_]*
 
 KEYWORD     ::= 'let' | 'in' | 'if' | 'then' | 'else' | 'true' | 'false'
               | 'type' | 'match' | 'with' | 'end' | 'import' | 'export'
+              | 'external'
 ```
 
 `from` is a *contextual* keyword: it is only special inside an import
@@ -33,11 +34,15 @@ program      ::= declaration*
 declaration  ::= import_decl
                | 'export'? let_decl
                | 'export'? type_decl
+               | 'export'? external_decl
 
 import_decl  ::= 'import' '{' import_names? '}' 'from' STRING
 import_names ::= IDENTIFIER (',' IDENTIFIER)*
 
 let_decl     ::= 'let' IDENTIFIER (':' type_annotation)? '=' expression
+
+external_decl ::= 'external' IDENTIFIER ':' type_annotation '=' STRING
+                  ('from' STRING)?
 
 type_decl    ::= 'type' IDENTIFIER type_param* '=' '|'? variant ('|' variant)*
 type_param   ::= IDENTIFIER                      (* lowercase *)
@@ -47,6 +52,10 @@ variant      ::= IDENTIFIER type_annotation*     (* uppercase name *)
 Import paths starting with `./` or `../` resolve relative to the importing
 file; bare paths such as `"std/list"` resolve into the bundled standard
 library. The `.jn` extension may be omitted.
+
+In an external declaration the string is a JavaScript expression; with a
+`from` clause it instead names a member imported from that JavaScript
+module. The type annotation is mandatory and trusted.
 
 ## Type annotations
 

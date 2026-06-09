@@ -117,7 +117,10 @@ export class Parser {
       if (this.match(TokenType.TYPE)) {
         return { ...this.typeDeclaration(), exported: true };
       }
-      throw unexpectedToken("'let' or 'type' after 'export'", this.peek());
+      if (this.match(TokenType.EXTERNAL)) {
+        return { ...this.externalDeclaration(), exported: true };
+      }
+      throw unexpectedToken("'let', 'type', or 'external' after 'export'", this.peek());
     }
 
     if (this.match(TokenType.LET)) {
@@ -128,7 +131,43 @@ export class Parser {
       return this.typeDeclaration();
     }
 
+    if (this.match(TokenType.EXTERNAL)) {
+      return this.externalDeclaration();
+    }
+
     throw unexpectedToken('declaration', this.peek());
+  }
+
+  /**
+   * Parse an external (JavaScript FFI) declaration
+   * external abs: (Int) -> Int = "Math.abs"
+   * external readFile: (String, String) -> String = "readFileSync" from "node:fs"
+   */
+  private externalDeclaration(): import('./ast.js').ExternalDeclaration {
+    const location = this.previous().location;
+
+    const nameToken = this.consume(TokenType.IDENTIFIER, 'external name');
+    this.consume(TokenType.COLON, "':' (external declarations require a type annotation)");
+    const typeAnnotation = this.typeAnnotation();
+    this.consume(TokenType.EQUAL, '=');
+    const valueToken = this.consume(TokenType.STRING, 'JavaScript expression string');
+
+    // Optional: 'from' "module" (contextual keyword, like imports)
+    let fromModule: string | undefined;
+    if (this.check(TokenType.IDENTIFIER) && this.peek().value === 'from') {
+      this.advance();
+      const moduleToken = this.consume(TokenType.STRING, 'module path string');
+      fromModule = moduleToken.value;
+    }
+
+    return {
+      kind: 'External',
+      name: nameToken.value,
+      typeAnnotation,
+      jsValue: valueToken.value,
+      fromModule,
+      location,
+    };
   }
 
   /**

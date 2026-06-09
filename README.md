@@ -118,6 +118,27 @@ Importing a type brings its constructors with it. Bare paths like
 `"std/list"` load the bundled standard library; relative paths load your
 own files.
 
+### Calling JavaScript
+
+`external` binds a JavaScript value under a trusted type annotation —
+the FFI boundary is explicit, and everything past it stays fully inferred:
+
+```jenna
+# Any JS expression
+external abs: (Int) -> Int = "Math.abs"
+external toUpper: (String) -> String = "(s) => s.toUpperCase()"
+
+# Named imports from node builtins or npm packages
+external readFile: (String, String) -> String = "readFileSync" from "node:fs"
+external platform: () -> String = "platform" from "node:os"
+```
+
+Function externals are wrapped at the annotated arity, so JavaScript
+quirks like `parseInt`'s optional radix can't leak across the boundary.
+Annotations are required and trusted — the one place you vouch for types
+yourself. Today's interop covers primitives and functions over them;
+richer data conversions are on the roadmap.
+
 ### Standard library
 
 | Module       | Exports                                                                                  |
@@ -144,6 +165,7 @@ doubles as a reference for idiomatic code.
 | [`binary-tree.jn`](examples/binary-tree.jn) | recursive data structures |
 | [`calculator.jn`](examples/calculator.jn) | an expression interpreter with `Result` error handling |
 | [`stdlib-tour.jn`](examples/stdlib-tour.jn) | the standard library |
+| [`js-interop.jn`](examples/js-interop.jn) | calling JavaScript with `external` |
 | [`modules/`](examples/modules) | a multi-file program |
 | [`showcase.jn`](examples/showcase.jn) | everything at once |
 
@@ -168,9 +190,9 @@ type checking and no runtime type overhead.
 ## Status
 
 Jenna is a young language under active development. The core — inference,
-ADTs, pattern matching, modules, the prelude — is complete and tested
-(126 tests, every example runs in CI). JavaScript interop is next; see
-[ROADMAP.md](ROADMAP.md).
+ADTs, pattern matching, modules, the prelude, JS interop — is complete and
+tested (140 tests, every example runs in CI). Records and richer interop
+data conversions are next; see [ROADMAP.md](ROADMAP.md).
 
 ## Development
 

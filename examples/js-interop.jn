@@ -1,0 +1,34 @@
+# Calling JavaScript from Jenna
+#
+# 'external' binds a JavaScript value under a trusted type annotation.
+# Function externals are wrapped at the annotated arity, so JavaScript
+# arity quirks (like parseInt's optional radix) can't leak through.
+
+# Bind global JS expressions
+external abs: (Int) -> Int = "Math.abs"
+external maxInt: (Int, Int) -> Int = "Math.max"
+external toInt: (String) -> Int = "parseInt"
+
+# Inline glue code is just a JS expression too
+external toUpper: (String) -> String = "(s) => s.toUpperCase()"
+external reverse: (String) -> String = "(s) => [...s].reverse().join('')"
+
+# Bind named imports from node builtins or npm packages
+external platform: () -> String = "platform" from "node:os"
+external pathJoin: (String, String) -> String = "join" from "node:path"
+
+let msg1 = print("abs(-42):")
+let out1 = printInt(abs(0 - 42))
+
+let msg2 = print("max(3, 7):")
+let out2 = printInt(maxInt(3, 7))
+
+let msg3 = print(toUpper("jenna calls javascript"))
+let msg4 = print(reverse("desrever"))
+
+# parseInt("08") is 8 — the arity wrapper prevents radix surprises
+let msg5 = print("parsed:")
+let out5 = printInt(toInt("08"))
+
+let msg6 = print(concat("platform: ", platform()))
+let msg7 = print(concat("joined: ", pathJoin("some", "path")))

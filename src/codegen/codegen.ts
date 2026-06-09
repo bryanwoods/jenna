@@ -2,6 +2,7 @@ import {
   Program,
   Declaration,
   LetDeclaration,
+  ExternalDeclaration,
   Expression,
   LiteralExpr,
   IdentifierExpr,
@@ -47,18 +48,73 @@ class CodegenContext {
 }
 
 /**
+ * ESM imports required by 'external ... from "module"' declarations.
+ * Each gets a unique alias; the external binding wraps the alias.
+ */
+function collectExternalImports(
+  declarations: Declaration[],
+  aliases: Map<ExternalDeclaration, string>
+): string[] {
+  const lines: string[] = [];
+  for (const decl of declarations) {
+    if (decl.kind === 'External' && decl.fromModule !== undefined) {
+      const alias = `$jenna_ext_${aliases.size}`;
+      aliases.set(decl, alias);
+      if (decl.jsValue === 'default') {
+        lines.push(`import ${alias} from ${JSON.stringify(decl.fromModule)};`);
+      } else {
+        lines.push(`import { ${decl.jsValue} as ${alias} } from ${JSON.stringify(decl.fromModule)};`);
+      }
+    }
+  }
+  return lines;
+}
+
+/**
+ * Generate the binding for an external declaration.
+ *
+ * Function-typed externals are wrapped at the annotated arity so that
+ * JavaScript arity quirks (extra arguments, optional parameters) cannot
+ * leak across the FFI boundary.
+ */
+function generateExternalDeclaration(
+  decl: ExternalDeclaration,
+  aliases: Map<ExternalDeclaration, string>
+): string {
+  const target = aliases.get(decl) ?? `(${decl.jsValue})`;
+
+  if (decl.typeAnnotation.kind === 'FunctionType') {
+    const arity = decl.typeAnnotation.parameters.length;
+    const args = Array.from({ length: arity }, (_, i) => `a${i}`).join(', ');
+    return `const ${decl.name} = (${args}) => ${target}(${args});`;
+  }
+
+  return `const ${decl.name} = ${target};`;
+}
+
+/**
  * Generate JavaScript code from a program
  */
 export function generateCode(ast: Program): string {
   const ctx = new CodegenContext();
   const lines: string[] = [];
 
+  // ESM imports for externals must be at the very top
+  const externalAliases = new Map<ExternalDeclaration, string>();
+  const importLines = collectExternalImports(ast.declarations, externalAliases);
+  if (importLines.length > 0) {
+    lines.push(importLines.join('\n'), '');
+  }
+
   // Add runtime preamble
   lines.push(generateRuntimePreamble());
 
   // Generate code for each declaration
   for (const decl of ast.declarations) {
-    const code = generateDeclaration(decl, ctx);
+    const code =
+      decl.kind === 'External'
+        ? generateExternalDeclaration(decl, externalAliases)
+        : generateDeclaration(decl, ctx);
     if (code) {
       lines.push(code);
     }
@@ -121,7 +177,18 @@ export function generateModules(modules: CodegenModule[]): string {
   const varNames = new Map<string, string>();
   modules.forEach((m, i) => varNames.set(m.path, moduleVarName(m.path, i)));
 
-  const lines: string[] = [generateRuntimePreamble()];
+  // ESM imports for externals (across all modules) must be at the very top
+  const externalAliases = new Map<ExternalDeclaration, string>();
+  const importLines: string[] = [];
+  for (const module of modules) {
+    importLines.push(...collectExternalImports(module.ast.declarations, externalAliases));
+  }
+
+  const lines: string[] = [];
+  if (importLines.length > 0) {
+    lines.push(importLines.join('\n'), '');
+  }
+  lines.push(generateRuntimePreamble());
 
   for (const module of modules) {
     lines.push(`// module: ${module.path}`);
@@ -138,15 +205,18 @@ export function generateModules(modules: CodegenModule[]): string {
     }
 
     for (const decl of module.ast.declarations) {
-      const code = generateDeclaration(decl, ctx);
+      const code =
+        decl.kind === 'External'
+          ? generateExternalDeclaration(decl, externalAliases)
+          : generateDeclaration(decl, ctx);
       if (code) {
         lines.push(`  ${code}`);
       }
     }
 
     const exportedValues = module.ast.declarations
-      .filter(d => d.kind === 'Let' && d.exported)
-      .map(d => (d as LetDeclaration).name);
+      .filter(d => (d.kind === 'Let' || d.kind === 'External') && d.exported)
+      .map(d => (d as LetDeclaration | ExternalDeclaration).name);
     lines.push(`  return { ${exportedValues.join(', ')} };`);
     lines.push(`})();`);
   }
