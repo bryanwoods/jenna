@@ -26,21 +26,56 @@ novel features.
 - **JavaScript interop** *(next up)*. Call into npm packages from Jenna with
   explicitly typed foreign declarations, keeping inference sound. This is
   the gate between "complete language" and "useful language", and needs a
-  design pass first.
+  design pass first. It also unlocks file I/O and process arguments — the
+  prerequisites for writing real tools in Jenna.
+- **Records** — ADTs currently have positional fields only. Named fields are
+  the biggest ergonomic gap for programs of any size.
 - **Map and Set** in the standard library.
+- **Strings as more than tokens** — char access, slicing, classification.
+- **Tail-call optimization** (or loop lowering) — recursion currently
+  compiles to JS recursion, which limits how much data idiomatic Jenna can
+  process.
 - **Pattern redundancy checking** — warn on unreachable match cases.
 - **REPL imports** — load `std/` and local modules into a session.
 
 ## Later
 
+- **`jenna fmt`, written in Jenna.** The first real tool built in the
+  language: it reads files, walks the AST, and writes output — exercising
+  interop, records, strings, and TCO at a tenth the size of a compiler.
+  This is deliberate dogfooding: it will surface every ergonomic gap that
+  matters before anything bigger is attempted.
 - Source maps for debugging compiled output.
 - Language server (LSP) for editor support.
 - Compile-time metaprogramming: hygienic macros and type-safe DSL building —
   the long-term differentiating feature, deliberately sequenced after the
   fundamentals above.
 
+## On self-hosting
+
+Self-hosting is a graduation exam, not a goal. Preparing for it is
+indistinguishable from making Jenna good — a compiler in Jenna needs
+records, real strings, Map/Set, TCO, and file I/O, every one of which is
+independently worth shipping (see *Next*). But attempting it too early has
+a real cost: once the compiler is written in Jenna, every language change
+means updating a large Jenna codebase and managing a bootstrap chain, which
+slows iteration exactly when the language should be changing fastest.
+
+There is also respectable precedent for never doing it: Elm and PureScript
+are written in Haskell, and Gleam is deliberately written in Rust.
+Self-hosting buys credibility and dogfooding, not user-facing value.
+
+The plan, in order:
+
+1. Ship the language features above on their own merits.
+2. Dogfood with `jenna fmt` — the cheap version of the exam.
+3. If that goes well, pilot one phase: a Jenna lexer, compiled by the
+   TypeScript compiler and validated against it across the test suite.
+4. Consider full self-hosting only at/after 1.0, once the language has
+   stopped moving. The TypeScript compiler remains the reference
+   implementation either way.
+
 ## Non-goals (for now)
 
-- Self-hosting.
 - Compilation targets other than JavaScript.
 - An effect system (revisit after interop proves out).
