@@ -78,7 +78,80 @@ function generateDeclaration(decl: Declaration, ctx: CodegenContext): string | n
     // Type declarations don't generate code
     return null;
   }
+  if (decl.kind === 'Import') {
+    // Imports are resolved by the module bundler, not per-declaration
+    return null;
+  }
   throw new Error(`Unknown declaration kind: ${(decl as any).kind}`);
+}
+
+/**
+ * A module as codegen needs it: parsed AST plus resolved import targets
+ */
+export interface CodegenModule {
+  path: string;
+  ast: Program;
+  imports: Array<{
+    declaration: { names: Array<{ name: string }>; path: string };
+    resolvedPath: string;
+  }>;
+}
+
+/**
+ * Derive a readable, unique JS identifier for a module
+ */
+function moduleVarName(modulePath: string, index: number): string {
+  const base = modulePath
+    .replace(/^.*[/\\]/, '')
+    .replace(/\.jn$/, '')
+    .replace(/[^A-Za-z0-9_]/g, '_');
+  return `$${base}_${index}`;
+}
+
+/**
+ * Generate a single bundled JS file from modules in dependency order.
+ *
+ * Each module becomes an IIFE returning its exported values; importers
+ * destructure from the dependency's module object. Type imports have no
+ * JS-level presence (constructors compile to inline tagged objects).
+ * The entry module comes last, so its top-level effects run on load.
+ */
+export function generateModules(modules: CodegenModule[]): string {
+  const ctx = new CodegenContext();
+  const varNames = new Map<string, string>();
+  modules.forEach((m, i) => varNames.set(m.path, moduleVarName(m.path, i)));
+
+  const lines: string[] = [generateRuntimePreamble()];
+
+  for (const module of modules) {
+    lines.push(`// module: ${module.path}`);
+    lines.push(`const ${varNames.get(module.path)} = (() => {`);
+
+    // Bind imported values from already-defined module objects
+    for (const imp of module.imports) {
+      const valueNames = imp.declaration.names
+        .map(n => n.name)
+        .filter(name => name[0] !== name[0].toUpperCase());
+      if (valueNames.length > 0) {
+        lines.push(`  const { ${valueNames.join(', ')} } = ${varNames.get(imp.resolvedPath)};`);
+      }
+    }
+
+    for (const decl of module.ast.declarations) {
+      const code = generateDeclaration(decl, ctx);
+      if (code) {
+        lines.push(`  ${code}`);
+      }
+    }
+
+    const exportedValues = module.ast.declarations
+      .filter(d => d.kind === 'Let' && d.exported)
+      .map(d => (d as LetDeclaration).name);
+    lines.push(`  return { ${exportedValues.join(', ')} };`);
+    lines.push(`})();`);
+  }
+
+  return lines.join('\n');
 }
 
 /**

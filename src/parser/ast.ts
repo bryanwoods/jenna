@@ -126,7 +126,19 @@ export interface WildcardPattern {
 }
 
 // Declarations
-export type Declaration = LetDeclaration | TypeDeclaration;
+export type Declaration = LetDeclaration | TypeDeclaration | ImportDeclaration;
+
+export interface ImportedName {
+  name: string;
+  location?: SourceLocation;
+}
+
+export interface ImportDeclaration {
+  kind: 'Import';
+  location?: SourceLocation;
+  names: ImportedName[];
+  path: string;
+}
 
 export interface LetDeclaration {
   kind: 'Let';
@@ -134,6 +146,7 @@ export interface LetDeclaration {
   name: string;
   typeAnnotation?: TypeAnnotation;
   value: Expression;
+  exported?: boolean;
 }
 
 export interface TypeDeclaration {
@@ -142,6 +155,7 @@ export interface TypeDeclaration {
   name: string;
   typeParams: string[];
   variants: Variant[];
+  exported?: boolean;
 }
 
 export interface Variant {

@@ -106,6 +106,20 @@ export class Parser {
    * Parse a declaration
    */
   private declaration(): Declaration {
+    if (this.match(TokenType.IMPORT)) {
+      return this.importDeclaration();
+    }
+
+    if (this.match(TokenType.EXPORT)) {
+      if (this.match(TokenType.LET)) {
+        return { ...this.letDeclaration(), exported: true };
+      }
+      if (this.match(TokenType.TYPE)) {
+        return { ...this.typeDeclaration(), exported: true };
+      }
+      throw unexpectedToken("'let' or 'type' after 'export'", this.peek());
+    }
+
     if (this.match(TokenType.LET)) {
       return this.letDeclaration();
     }
@@ -115,6 +129,41 @@ export class Parser {
     }
 
     throw unexpectedToken('declaration', this.peek());
+  }
+
+  /**
+   * Parse an import declaration
+   * import { add, Option } from "./math"
+   */
+  private importDeclaration(): import('./ast.js').ImportDeclaration {
+    const location = this.previous().location;
+
+    this.consume(TokenType.LBRACE, '{');
+
+    const names: import('./ast.js').ImportedName[] = [];
+    if (!this.check(TokenType.RBRACE)) {
+      do {
+        const nameToken = this.consume(TokenType.IDENTIFIER, 'imported name');
+        names.push({ name: nameToken.value, location: nameToken.location });
+      } while (this.match(TokenType.COMMA));
+    }
+
+    this.consume(TokenType.RBRACE, '}');
+
+    // 'from' is a contextual keyword: expect an identifier spelled "from"
+    const fromToken = this.consume(TokenType.IDENTIFIER, "'from'");
+    if (fromToken.value !== 'from') {
+      throw unexpectedToken("'from'", fromToken);
+    }
+
+    const pathToken = this.consume(TokenType.STRING, 'module path string');
+
+    return {
+      kind: 'Import',
+      names,
+      path: pathToken.value,
+      location,
+    };
   }
 
   /**

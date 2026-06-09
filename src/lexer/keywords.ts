@@ -15,6 +15,8 @@ export const KEYWORDS: Map<string, TokenType> = new Map([
   ['match', TokenType.MATCH],
   ['with', TokenType.WITH],
   ['end', TokenType.END],
+  ['import', TokenType.IMPORT],
+  ['export', TokenType.EXPORT],
 ]);
 
 /**

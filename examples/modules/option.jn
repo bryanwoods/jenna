@@ -1,0 +1,14 @@
+# A reusable Option module
+
+export type Option a = Some a | None
+
+export let unwrapOr = (opt, fallback) ->
+  match opt with
+  | Some(x) -> x
+  | None -> fallback
+  end
+
+export let withDefault = (fallback) -> (opt) -> unwrapOr(opt, fallback)
+
+# Private helper: not visible to importers
+let internalTag = "option-v1"

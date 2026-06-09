@@ -225,6 +225,36 @@ match opt with
 end
 ```
 
+### Modules
+
+Split programs across files with `import` and `export`:
+
+```jenna
+# option.jn
+export type Option a = Some a | None
+
+export let unwrapOr = (opt, fallback) ->
+  match opt with
+  | Some(x) -> x
+  | None -> fallback
+  end
+
+let helper = 1  # private: not visible to importers
+```
+
+```jenna
+# main.jn
+import { Option, unwrapOr } from "./option"
+
+let value = unwrapOr(Some(42), 0)
+```
+
+- Paths are relative to the importing file; the `.jn` extension is optional
+- Only `export`ed declarations can be imported — everything else is private
+- Importing a type brings its constructors with it (`Option` gives you `Some` and `None`)
+- Import cycles are detected and reported with the cycle chain
+- The compiler bundles all modules into a single JavaScript file
+
 ### Pipe Operator
 
 ```jenna
@@ -417,9 +447,9 @@ npm run test:watch
 - [x] Modulo operator (`%`)
 
 **Remaining for Phase 2:**
-- [ ] Better error messages with source snippets
+- [x] Better error messages with source snippets
+- [x] Module system (import/export with privacy and cycle detection)
 - [ ] Immutable data structures in stdlib (List, Map, Set)
-- [ ] Module system
 - [ ] Redundancy checking for patterns
 
 ### Phase 3: The Unique Feature (v0.3) 🚧 Planned

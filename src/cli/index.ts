@@ -2,8 +2,34 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { compile, formatError } from '../index.js';
+import { compileProject, formatError } from '../index.js';
 import { startRepl } from './repl.js';
+
+/**
+ * Format a compile error against the source of the module it came from
+ * (errors are tagged with modulePath by the resolver and type checker)
+ */
+function reportCompileError(error: unknown, entryPath: string): never {
+  if (error instanceof Error) {
+    const modulePath = (error as Error & { modulePath?: string }).modulePath;
+    let displayPath = entryPath;
+    let source = '';
+    try {
+      if (modulePath) {
+        source = fs.readFileSync(modulePath, 'utf-8');
+        displayPath = path.relative(process.cwd(), modulePath);
+      } else {
+        source = fs.readFileSync(entryPath, 'utf-8');
+      }
+    } catch {
+      // Without source we still print the bare message below
+    }
+    console.error(formatError(error, source, displayPath));
+  } else {
+    console.error(String(error));
+  }
+  process.exit(1);
+}
 
 /**
  * Print usage information
@@ -35,18 +61,6 @@ function printVersion(): void {
 }
 
 /**
- * Read a file
- */
-function readFile(filePath: string): string {
-  try {
-    return fs.readFileSync(filePath, 'utf-8');
-  } catch (error) {
-    console.error(`Error: Could not read file '${filePath}'`);
-    process.exit(1);
-  }
-}
-
-/**
  * Write a file
  */
 function writeFile(filePath: string, content: string): void {
@@ -62,20 +76,12 @@ function writeFile(filePath: string, content: string): void {
  * Compile command
  */
 function compileCommand(inputPath: string, outputPath?: string): void {
-  // Read source file
-  const source = readFile(inputPath);
-
-  // Compile
+  // Compile (resolving any imports relative to the entry file)
   let jsCode: string;
   try {
-    jsCode = compile(source);
+    jsCode = compileProject(inputPath, (p) => fs.readFileSync(p, 'utf-8'));
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(formatError(error, source, inputPath));
-    } else {
-      console.error(String(error));
-    }
-    process.exit(1);
+    reportCompileError(error, inputPath);
   }
 
   // Determine output path
@@ -94,20 +100,12 @@ function compileCommand(inputPath: string, outputPath?: string): void {
  * Run command
  */
 function runCommand(inputPath: string): void {
-  // Read source file
-  const source = readFile(inputPath);
-
-  // Compile
+  // Compile (resolving any imports relative to the entry file)
   let jsCode: string;
   try {
-    jsCode = compile(source);
+    jsCode = compileProject(inputPath, (p) => fs.readFileSync(p, 'utf-8'));
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(formatError(error, source, inputPath));
-    } else {
-      console.error(String(error));
-    }
-    process.exit(1);
+    reportCompileError(error, inputPath);
   }
 
   // Execute

@@ -1,0 +1,13 @@
+# Math helpers
+
+import { Option } from "./option"
+
+export let double = (x) -> x * 2
+export let square = (x) -> x * x
+
+# Safe division returns an Option instead of dividing by zero
+export let safeDiv = (a, b) ->
+  if b == 0 then
+    None
+  else
+    Some(a / b)

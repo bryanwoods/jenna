@@ -311,6 +311,8 @@ export class Lexer {
       case ',': return { type: TokenType.COMMA, value: ',', location };
       case ':': return { type: TokenType.COLON, value: ':', location };
       case '|': return { type: TokenType.PIPE, value: '|', location };
+      case '{': return { type: TokenType.LBRACE, value: '{', location };
+      case '}': return { type: TokenType.RBRACE, value: '}', location };
       default:
         throw new LexError(`Unexpected character '${singleChar}'`, location);
     }

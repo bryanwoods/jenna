@@ -1,0 +1,26 @@
+# Entry point demonstrating Jenna's module system
+
+import { Option, unwrapOr } from "./option"
+import { double, square, safeDiv } from "./math"
+
+let msg1 = print("double(21):")
+let out1 = printInt(double(21))
+
+let msg2 = print("square(7):")
+let out2 = printInt(square(7))
+
+let msg3 = print("10 / 2 (safe):")
+let out3 = printInt(unwrapOr(safeDiv(10, 2), -1))
+
+let msg4 = print("10 / 0 (safe, defaults to -1):")
+let out4 = printInt(unwrapOr(safeDiv(10, 0), -1))
+
+# Pattern match directly on an imported type
+let describe = (opt) ->
+  match opt with
+  | Some(x) -> "got a value"
+  | None -> "got nothing"
+  end
+
+let msg5 = print(describe(safeDiv(8, 2)))
+let msg6 = print(describe(safeDiv(8, 0)))

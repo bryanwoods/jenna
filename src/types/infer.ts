@@ -17,7 +17,9 @@ import {
   LetExpr,
   Pattern,
   TypeAnnotation as ASTTypeAnnotation,
+  ImportDeclaration,
 } from '../parser/ast.js';
+import { SourceLocation } from '../lexer/token.js';
 import {
   Type,
   IntType,
@@ -62,7 +64,7 @@ type TypeSubstitution = Map<string, Type>;
 /**
  * Constructor information for the registry
  */
-interface ConstructorInfo {
+export interface ConstructorInfo {
   name: string;
   adtName: string;
   argTypeAnnotations: ASTTypeAnnotation[]; // Store AST annotations
@@ -71,8 +73,16 @@ interface ConstructorInfo {
 
 /**
  * Convert AST type annotation to internal Type
+ *
+ * Pass validate=false for annotations already validated in their home
+ * module (imported constructors may reference types that are private
+ * to the exporting module).
  */
-function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new Map()): Type {
+function astTypeToType(
+  astType: ASTTypeAnnotation,
+  subst: TypeSubstitution = new Map(),
+  validate: boolean = true
+): Type {
   if (astType.kind === 'PrimitiveType') {
     switch (astType.name) {
       case 'Int': return IntType;
@@ -83,8 +93,8 @@ function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new
   }
 
   if (astType.kind === 'FunctionType') {
-    const parameters = astType.parameters.map(p => astTypeToType(p, subst));
-    const returnType = astTypeToType(astType.returnType, subst);
+    const parameters = astType.parameters.map(p => astTypeToType(p, subst, validate));
+    const returnType = astTypeToType(astType.returnType, subst, validate);
     return {
       kind: 'Function',
       parameters,
@@ -103,17 +113,19 @@ function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new
   }
 
   if (astType.kind === 'CustomType') {
-    const adt = adtRegistry.get(astType.name);
-    if (!adt) {
-      throw new TypeError(`Unknown type: ${astType.name}`, astType.location);
+    if (validate) {
+      const adt = adtRegistry.get(astType.name);
+      if (!adt) {
+        throw new TypeError(`Unknown type: ${astType.name}`, astType.location);
+      }
+      if (astType.arguments.length !== adt.typeParams.length) {
+        throw new TypeError(
+          `Type ${astType.name} expects ${adt.typeParams.length} type argument(s), got ${astType.arguments.length}`,
+          astType.location
+        );
+      }
     }
-    if (astType.arguments.length !== adt.typeParams.length) {
-      throw new TypeError(
-        `Type ${astType.name} expects ${adt.typeParams.length} type argument(s), got ${astType.arguments.length}`,
-        astType.location
-      );
-    }
-    const typeArgs = astType.arguments.map(arg => astTypeToType(arg, subst));
+    const typeArgs = astType.arguments.map(arg => astTypeToType(arg, subst, validate));
     return {
       kind: 'ADT',
       name: astType.name,
@@ -125,14 +137,24 @@ function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new
 }
 
 /**
- * Global registry of ADT constructors
+ * Information about a declared (or imported) ADT
  */
-const constructorRegistry = new Map<string, ConstructorInfo>();
+interface ADTInfo {
+  typeParams: string[];
+  /** Module path the type was declared in, for collision reporting */
+  origin?: string;
+}
 
 /**
- * Global registry of declared ADTs (name -> type parameters)
+ * Registry of ADT constructors visible to the module being checked.
+ * Reassigned per module so each module sees only its own and imported types.
  */
-const adtRegistry = new Map<string, { typeParams: string[] }>();
+let constructorRegistry = new Map<string, ConstructorInfo>();
+
+/**
+ * Registry of ADTs visible to the module being checked
+ */
+let adtRegistry = new Map<string, ADTInfo>();
 
 /**
  * Create a type environment with built-in functions
@@ -181,11 +203,19 @@ function createStdlib(): TypeEnvironment {
 /**
  * Register an ADT and its constructors
  */
-function registerADT(decl: TypeDeclaration): void {
+function registerADT(decl: TypeDeclaration, origin?: string): void {
   const adtName = decl.name;
   const typeParams = decl.typeParams;
 
-  adtRegistry.set(adtName, { typeParams });
+  const existing = adtRegistry.get(adtName);
+  if (existing && existing.origin !== origin) {
+    throw new TypeError(
+      `Type ${adtName} conflicts with an imported type of the same name`,
+      decl.location
+    );
+  }
+
+  adtRegistry.set(adtName, { typeParams, origin });
 
   // Register each variant as a constructor
   for (const variant of decl.variants) {
@@ -199,6 +229,19 @@ function registerADT(decl: TypeDeclaration): void {
     };
 
     constructorRegistry.set(constructorName, constructor);
+  }
+
+  // Eagerly validate variant annotations so errors point at the
+  // declaration, and so imported constructors never need re-validation
+  // in modules where their referenced types are not in scope
+  const subst = new Map<string, Type>();
+  for (const param of typeParams) {
+    subst.set(param, freshTypeVar());
+  }
+  for (const variant of decl.variants) {
+    for (const annotation of variant.arguments) {
+      astTypeToType(annotation, subst);
+    }
   }
 }
 
@@ -435,8 +478,10 @@ function instantiateConstructor(constructor: ConstructorInfo): { argTypes: Type[
     subst.set(param, freshTypeArgs[i]);
   });
 
-  // Convert AST type annotations to types with the substitution
-  const argTypes = constructor.argTypeAnnotations.map(annot => astTypeToType(annot, subst));
+  // Convert AST type annotations to types with the substitution.
+  // No validation: annotations were validated when the ADT was declared,
+  // and may reference types private to the declaring module.
+  const argTypes = constructor.argTypeAnnotations.map(annot => astTypeToType(annot, subst, false));
 
   const returnType: ADTType = {
     kind: 'ADT',
@@ -655,12 +700,13 @@ function inferPattern(pattern: Pattern, expectedType: Type, env: TypeEnvironment
 /**
  * Infer types for a declaration
  */
-function inferDeclaration(decl: Declaration, env: TypeEnvironment): void {
+function inferDeclaration(decl: Declaration, env: TypeEnvironment, origin?: string): void {
   if (decl.kind === 'Let') {
     inferLetDeclaration(decl, env);
   } else if (decl.kind === 'Type') {
-    registerADT(decl);
+    registerADT(decl, origin);
   }
+  // Imports are bound before declarations are checked; nothing to do here
 }
 
 /**
@@ -696,24 +742,12 @@ function inferLetDeclaration(decl: LetDeclaration, env: TypeEnvironment): void {
 }
 
 /**
- * Infer types for a program
+ * Check all declarations of one program/module against an environment
  */
-export function inferTypes(ast: Program): Program {
-  // Reset type variable counter for fresh inference
-  resetTypeVarCounter();
-
-  // Reset per-program state so ADTs from a previous compile don't leak in
-  constructorRegistry.clear();
-  adtRegistry.clear();
-  warnings.length = 0;
-
-  // Create environment with standard library
-  const env = createStdlib();
-
-  // Infer types for all declarations
-  for (const decl of ast.declarations) {
+function checkDeclarations(declarations: Declaration[], env: TypeEnvironment, origin?: string): void {
+  for (const decl of declarations) {
     try {
-      inferDeclaration(decl, env);
+      inferDeclaration(decl, env, origin);
     } catch (error) {
       if (error instanceof TypeError) {
         // Add context about which declaration failed, keeping the most
@@ -729,7 +763,147 @@ export function inferTypes(ast: Program): Program {
       throw error;
     }
   }
+}
+
+/**
+ * Infer types for a single-file program
+ */
+export function inferTypes(ast: Program): Program {
+  // Reset type variable counter for fresh inference
+  resetTypeVarCounter();
+
+  // Reset per-program state so ADTs from a previous compile don't leak in
+  constructorRegistry = new Map();
+  adtRegistry = new Map();
+  warnings.length = 0;
+
+  // Create environment with standard library
+  const env = createStdlib();
+
+  checkDeclarations(ast.declarations, env);
 
   // Return the AST unchanged (types are inferred but not stored in AST yet)
   return ast;
+}
+
+/**
+ * What a module makes available to its importers
+ */
+export interface ModuleExports {
+  values: Map<string, Type>;
+  types: Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>;
+}
+
+/**
+ * Bind one imported name into the current module's environment/registries
+ */
+function bindImport(
+  imported: { name: string; location?: SourceLocation },
+  importPath: string,
+  resolvedPath: string,
+  moduleExports: ModuleExports,
+  env: TypeEnvironment
+): void {
+  const { name, location } = imported;
+  const isTypeName = name[0] === name[0].toUpperCase();
+
+  if (isTypeName) {
+    const typeExport = moduleExports.types.get(name);
+    if (!typeExport) {
+      // Helpful hint when someone imports a constructor instead of its type
+      for (const [typeName, t] of moduleExports.types) {
+        if (t.constructors.some(c => c.name === name)) {
+          throw new TypeError(
+            `'${name}' is a constructor; import its type '${typeName}' instead (constructors come with the type)`,
+            location
+          );
+        }
+      }
+      throw new TypeError(`Module '${importPath}' has no exported type '${name}'`, location);
+    }
+
+    const existing = adtRegistry.get(name);
+    if (existing && existing.origin !== resolvedPath) {
+      throw new TypeError(`Imported type ${name} conflicts with another type of the same name`, location);
+    }
+
+    adtRegistry.set(name, { typeParams: typeExport.typeParams, origin: resolvedPath });
+    for (const constructor of typeExport.constructors) {
+      constructorRegistry.set(constructor.name, constructor);
+    }
+  } else {
+    const valueType = moduleExports.values.get(name);
+    if (!valueType) {
+      throw new TypeError(`Module '${importPath}' has no exported value '${name}'`, location);
+    }
+    env.bind(name, valueType);
+  }
+}
+
+/**
+ * Infer types across a whole program of modules.
+ *
+ * Modules must be in dependency order (as produced by loadProgram).
+ * Each module is checked with its own environment and type registries,
+ * seeded from the standard library and its imports — so non-exported
+ * names are invisible to importers.
+ */
+export function inferModules(
+  modules: Array<{
+    path: string;
+    ast: Program;
+    imports: Array<{ declaration: ImportDeclaration; resolvedPath: string }>;
+  }>
+): Map<string, ModuleExports> {
+  resetTypeVarCounter();
+  warnings.length = 0;
+
+  const exportsByPath = new Map<string, ModuleExports>();
+
+  for (const module of modules) {
+    constructorRegistry = new Map();
+    adtRegistry = new Map();
+    const env = createStdlib();
+
+    try {
+      // Bind imports first so declarations can use them
+      for (const imp of module.imports) {
+        const dependencyExports = exportsByPath.get(imp.resolvedPath);
+        if (!dependencyExports) {
+          throw new TypeError(
+            `Internal error: module '${imp.declaration.path}' was not checked before its importer`
+          );
+        }
+        for (const imported of imp.declaration.names) {
+          bindImport(imported, imp.declaration.path, imp.resolvedPath, dependencyExports, env);
+        }
+      }
+
+      checkDeclarations(module.ast.declarations, env, module.path);
+    } catch (error) {
+      // Tag the error with the module it came from so diagnostics can
+      // show the right source file
+      if (error instanceof Error && !('modulePath' in error)) {
+        (error as Error & { modulePath: string }).modulePath = module.path;
+      }
+      throw error;
+    }
+
+    // Record this module's exports for its importers
+    const values = new Map<string, Type>();
+    const types = new Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>();
+    for (const decl of module.ast.declarations) {
+      if (decl.kind === 'Let' && decl.exported) {
+        values.set(decl.name, prune(env.lookup(decl.name)!));
+      } else if (decl.kind === 'Type' && decl.exported) {
+        const constructors = decl.variants
+          .map(v => constructorRegistry.get(v.name))
+          .filter((c): c is ConstructorInfo => c !== undefined);
+        types.set(decl.name, { typeParams: decl.typeParams, constructors });
+      }
+    }
+    exportsByPath.set(module.path, { values, types });
+  }
+
+  return exportsByPath;
 }

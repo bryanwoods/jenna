@@ -20,6 +20,8 @@ export enum TokenType {
   MATCH = 'MATCH',
   WITH = 'WITH',
   END = 'END',
+  IMPORT = 'IMPORT',
+  EXPORT = 'EXPORT',
 
   // Operators
   PLUS = 'PLUS',           // +
@@ -46,6 +48,8 @@ export enum TokenType {
   PIPE_RIGHT = 'PIPE_RIGHT', // |>
   COLON = 'COLON',         // :
   PIPE = 'PIPE',           // |
+  LBRACE = 'LBRACE',       // {
+  RBRACE = 'RBRACE',       // }
 
   // Special
   NEWLINE = 'NEWLINE',

@@ -94,6 +94,11 @@ export function startRepl(): void {
       return;
     }
 
+    if (trimmed.startsWith('import')) {
+      console.error('Error: imports are not supported in the REPL (run a file with `jenna run` instead)');
+      return;
+    }
+
     try {
       // Check if this is a declaration to save
       const isLetDeclaration = trimmed.startsWith('let ') && !trimmed.includes(' in ');
