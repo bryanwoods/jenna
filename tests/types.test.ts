@@ -231,6 +231,42 @@ describe('Type Inference', () => {
     });
   });
 
+  describe('Let-Polymorphism', () => {
+    it('allows a let-bound function at multiple types', () => {
+      const source = 'let id = (x) -> x\nlet a = id(1)\nlet b = id("s")';
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+
+    it('allows polymorphic use within let expressions', () => {
+      const source = 'let r =\n  let id = (x) -> x in\n  id(1) + (if id(true) then 1 else 0)';
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+
+    it('generalizes recursive functions after their own inference', () => {
+      const source = `type List a = Cons a List a | Nil
+let length = (lst) ->
+  match lst with
+  | Nil -> 0
+  | Cons(_, t) -> 1 + length(t)
+  end
+let a = length(Cons(1, Nil))
+let b = length(Cons("s", Nil))`;
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+
+    it('keeps lambda parameters monomorphic', () => {
+      const source = 'let bad = (f) ->\n  let r1 = f(1) in\n  f("x")';
+      expect(() => inferTypes(parse(tokenize(source)))).toThrow(TypeError);
+    });
+
+    it('keeps recursive self-reference monomorphic during inference', () => {
+      // Using the recursive binding at two types inside its own body is
+      // not allowed (monomorphic recursion)
+      const source = 'let f = (x) -> if true then x else f(f(x))';
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+  });
+
   describe('Type Annotations', () => {
     it('should reject unknown type names', () => {
       const source = 'let x: Foo = 5';

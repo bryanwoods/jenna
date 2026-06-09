@@ -22,6 +22,7 @@ import {
 import { SourceLocation } from '../lexer/token.js';
 import {
   Type,
+  TypeScheme,
   IntType,
   FloatType,
   StringType,
@@ -30,6 +31,7 @@ import {
   ADTType,
   freshTypeVar,
   prune,
+  generalize,
   resetTypeVarCounter,
 } from './types.js';
 import { TypeEnvironment } from './environment.js';
@@ -410,9 +412,10 @@ function inferLetExpr(expr: LetExpr, env: TypeEnvironment): Type {
   // Infer the type of the value
   const valueType = inferExpression(expr.value, env);
 
-  // Extend environment with the new binding
+  // Extend environment with the new binding, generalized so the
+  // binding can be used polymorphically in the body
   const letEnv = env.extend();
-  letEnv.bind(expr.name, valueType);
+  letEnv.bindScheme(expr.name, generalize(prune(valueType), env.freeTypeVars()));
 
   // Infer the body type in the extended environment
   const bodyType = inferExpression(expr.body, letEnv);
@@ -713,13 +716,15 @@ function inferDeclaration(decl: Declaration, env: TypeEnvironment, origin?: stri
  * Infer types for a let declaration
  */
 function inferLetDeclaration(decl: LetDeclaration, env: TypeEnvironment): void {
-  // For recursive functions, we need to add a binding first with a fresh type variable
-  // Then infer the type and unify
+  // For recursive functions, bind the name to a fresh type variable
+  // while inferring its own body (monomorphic recursion). The binding
+  // lives in a child env so it doesn't pollute generalization below.
   const selfType = freshTypeVar();
-  env.bind(decl.name, selfType);
+  const bodyEnv = env.extend();
+  bodyEnv.bind(decl.name, selfType);
 
   // Infer the type of the value
-  const valueType = inferExpression(decl.value, env);
+  const valueType = inferExpression(decl.value, bodyEnv);
 
   // Unify the self type with the inferred type
   unify(selfType, valueType);
@@ -737,8 +742,9 @@ function inferLetDeclaration(decl: LetDeclaration, env: TypeEnvironment): void {
     }
   }
 
-  // Update binding with the pruned type
-  env.bind(decl.name, prune(selfType));
+  // Generalize over type variables not free elsewhere in the
+  // environment, making the binding polymorphic at use sites
+  env.bindScheme(decl.name, generalize(prune(selfType), env.freeTypeVars()));
 }
 
 /**
@@ -790,7 +796,7 @@ export function inferTypes(ast: Program): Program {
  * What a module makes available to its importers
  */
 export interface ModuleExports {
-  values: Map<string, Type>;
+  values: Map<string, TypeScheme>;
   types: Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>;
 }
 
@@ -832,11 +838,11 @@ function bindImport(
       constructorRegistry.set(constructor.name, constructor);
     }
   } else {
-    const valueType = moduleExports.values.get(name);
-    if (!valueType) {
+    const valueScheme = moduleExports.values.get(name);
+    if (!valueScheme) {
       throw new TypeError(`Module '${importPath}' has no exported value '${name}'`, location);
     }
-    env.bind(name, valueType);
+    env.bindScheme(name, valueScheme);
   }
 }
 
@@ -890,11 +896,11 @@ export function inferModules(
     }
 
     // Record this module's exports for its importers
-    const values = new Map<string, Type>();
+    const values = new Map<string, TypeScheme>();
     const types = new Map<string, { typeParams: string[]; constructors: ConstructorInfo[] }>();
     for (const decl of module.ast.declarations) {
       if (decl.kind === 'Let' && decl.exported) {
-        values.set(decl.name, prune(env.lookup(decl.name)!));
+        values.set(decl.name, env.lookupScheme(decl.name)!);
       } else if (decl.kind === 'Type' && decl.exported) {
         const constructors = decl.variants
           .map(v => constructorRegistry.get(v.name))

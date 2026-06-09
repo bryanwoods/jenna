@@ -181,3 +181,118 @@ export const IntType: PrimitiveType = { kind: 'Primitive', name: 'Int' };
 export const FloatType: PrimitiveType = { kind: 'Primitive', name: 'Float' };
 export const StringType: PrimitiveType = { kind: 'Primitive', name: 'String' };
 export const BoolType: PrimitiveType = { kind: 'Primitive', name: 'Bool' };
+
+/**
+ * A polymorphic type scheme: a type together with the set of type
+ * variable ids that are universally quantified (generic).
+ *
+ * Monotypes are schemes with an empty quantifier set.
+ */
+export interface TypeScheme {
+  quantified: Set<number>;
+  type: Type;
+}
+
+/**
+ * Wrap a type as a monomorphic scheme
+ */
+export function monotype(type: Type): TypeScheme {
+  return { quantified: new Set(), type };
+}
+
+/**
+ * Collect the ids of unbound type variables appearing in a type
+ */
+export function freeTypeVars(type: Type, into: Set<number> = new Set()): Set<number> {
+  type = prune(type);
+
+  if (type.kind === 'TypeVariable') {
+    into.add(type.id);
+  } else if (type.kind === 'Function') {
+    for (const param of type.parameters) {
+      freeTypeVars(param, into);
+    }
+    freeTypeVars(type.returnType, into);
+  } else if (type.kind === 'ADT') {
+    for (const arg of type.typeArgs) {
+      freeTypeVars(arg, into);
+    }
+  }
+
+  return into;
+}
+
+/**
+ * Free type variables of a scheme: those in the type minus the quantified
+ */
+export function freeTypeVarsInScheme(scheme: TypeScheme, into: Set<number> = new Set()): Set<number> {
+  for (const id of freeTypeVars(scheme.type)) {
+    if (!scheme.quantified.has(id)) {
+      into.add(id);
+    }
+  }
+  return into;
+}
+
+/**
+ * Instantiate a scheme: copy the type with fresh variables substituted
+ * for the quantified ones. Non-quantified variables stay shared so they
+ * unify globally.
+ */
+export function instantiate(scheme: TypeScheme): Type {
+  if (scheme.quantified.size === 0) {
+    return scheme.type;
+  }
+
+  const replacements = new Map<number, TypeVariable>();
+
+  const copy = (t: Type): Type => {
+    t = prune(t);
+
+    if (t.kind === 'TypeVariable') {
+      if (!scheme.quantified.has(t.id)) {
+        return t;
+      }
+      let fresh = replacements.get(t.id);
+      if (!fresh) {
+        fresh = freshTypeVar();
+        replacements.set(t.id, fresh);
+      }
+      return fresh;
+    }
+
+    if (t.kind === 'Function') {
+      return {
+        kind: 'Function',
+        parameters: t.parameters.map(copy),
+        returnType: copy(t.returnType),
+      };
+    }
+
+    if (t.kind === 'ADT') {
+      return {
+        kind: 'ADT',
+        name: t.name,
+        typeArgs: t.typeArgs.map(copy),
+      };
+    }
+
+    return t; // Primitive
+  };
+
+  return copy(scheme.type);
+}
+
+/**
+ * Generalize a type into a scheme, quantifying every free type variable
+ * that is not also free in the environment (envFreeVars).
+ */
+export function generalize(type: Type, envFreeVars: Set<number>): TypeScheme {
+  const quantified = new Set<number>();
+  for (const id of freeTypeVars(type)) {
+    if (!envFreeVars.has(id)) {
+      quantified.add(id);
+    }
+  }
+  return { quantified, type };
+}

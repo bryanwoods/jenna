@@ -187,6 +187,17 @@ let b = printInt(unwrapOr(None, -1))`,
       }
     });
 
+    it('instantiates imported polymorphic functions per use site', () => {
+      const logged = runBundle(compileProject({
+        '/lib.jn': 'export let identity = (x) -> x',
+        '/main.jn': `
+import { identity } from "./lib"
+let a = printInt(identity(1))
+let b = print(identity("two"))`,
+      }));
+      expect(logged).toEqual([1, 'two']);
+    });
+
     it('type-checks values across module boundaries', () => {
       expect(() => compileProject({
         '/lib.jn': 'export let getNumber = () -> 42',
