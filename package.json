@@ -1,9 +1,12 @@
 {
   "name": "jenna",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A statically-typed functional language with type inference that compiles to JavaScript",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "jenna": "dist/cli/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",

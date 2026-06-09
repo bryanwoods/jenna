@@ -17,15 +17,15 @@ Jenna combines:
 type Option a = Some a | None
 
 # Pattern matching with exhaustiveness checking
-let unwrapOr = (opt, default) ->
+let unwrapOr = (opt, fallback) ->
   match opt with
   | Some(x) -> x
-  | None -> default
+  | None -> fallback
   end
 
 # Pipe operator for functional composition
 let result = Some(10)
-  |> unwrapOr(0)
+  |> (opt) -> unwrapOr(opt, 0)
   |> (x) -> x * 2
   |> intToString
   |> print  # Outputs: "20"

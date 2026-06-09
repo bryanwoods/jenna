@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { compile } from '../index.js';
+import { startRepl } from './repl.js';
 
 /**
  * Print usage information
@@ -12,12 +13,14 @@ function printUsage(): void {
 Jenna - A statically-typed functional language that compiles to JavaScript
 
 Usage:
+  jenna repl                              Start an interactive REPL
   jenna compile <input.jn> [output.js]    Compile a Jenna file to JavaScript
   jenna run <input.jn>                    Compile and run a Jenna file
   jenna --help                            Show this help message
   jenna --version                         Show version
 
 Examples:
+  jenna repl                              Start interactive mode
   jenna compile hello.jn                  Compile hello.jn to hello.js
   jenna compile hello.jn output.js        Compile hello.jn to output.js
   jenna run factorial.jn                  Compile and execute factorial.jn
@@ -28,7 +31,7 @@ Examples:
  * Print version information
  */
 function printVersion(): void {
-  console.log('Jenna v0.1.0');
+  console.log('Jenna v0.2.0');
 }
 
 /**
@@ -146,7 +149,9 @@ function main(): void {
 
   const command = args[0];
 
-  if (command === 'compile') {
+  if (command === 'repl') {
+    startRepl();
+  } else if (command === 'compile') {
     if (args.length < 2) {
       console.error('Error: compile command requires an input file');
       printUsage();
