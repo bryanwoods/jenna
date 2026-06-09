@@ -36,6 +36,21 @@ export function intToString(n: number): string {
 }
 
 /**
+ * Print a float to console and return it
+ */
+export function printFloat(n: number): number {
+  console.log(n);
+  return n;
+}
+
+/**
+ * Convert a float to a string
+ */
+export function floatToString(n: number): string {
+  return n.toString();
+}
+
+/**
  * Modulo operation
  */
 export function mod(a: number, b: number): number {
@@ -65,6 +80,8 @@ const print = (s) => { console.log(s); return s; };
 const printInt = (n) => { console.log(n); return n; };
 const printBool = (b) => { console.log(b); return b; };
 const intToString = (n) => n.toString();
+const printFloat = (n) => { console.log(n); return n; };
+const floatToString = (n) => n.toString();
 const mod = (a, b) => a % b;
 const concat = (a, b) => a + b;
 const stringLength = (s) => s.length;

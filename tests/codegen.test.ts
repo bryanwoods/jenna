@@ -46,6 +46,25 @@ describe('Code Generation', () => {
       const result = new Function(code + '\nreturn x;')();
       expect(result).toBe(3);
     });
+
+    it('float division stays fractional', () => {
+      const code = compile('let x = 7.0 / 2');
+      expect(code).toContain('(7 / 2)');
+      const result = new Function(code + '\nreturn x;')();
+      expect(result).toBe(3.5);
+    });
+
+    it('exponentiation is right-associative and Int-truncating', () => {
+      const code = compile('let x = 2 ** 3 ** 2\nlet y = 2 ** (0 - 1)');
+      const fn = new Function(code + '\nreturn { x, y };');
+      expect(fn()).toEqual({ x: 512, y: 0 });
+    });
+
+    it('float exponentiation stays fractional', () => {
+      const code = compile('let x = 2.0 ** (0 - 1)');
+      const result = new Function(code + '\nreturn x;')();
+      expect(result).toBe(0.5);
+    });
   });
 
   describe('Functions', () => {

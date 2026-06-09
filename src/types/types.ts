@@ -23,6 +23,8 @@ export interface TypeVariable {
   kind: 'TypeVariable';
   id: number;
   instance?: Type; // For unification
+  /** Constrained to Int or Float (set by arithmetic on unresolved operands) */
+  numeric?: boolean;
 }
 
 export interface ADTType {
@@ -256,6 +258,7 @@ export function instantiate(scheme: TypeScheme): Type {
       let fresh = replacements.get(t.id);
       if (!fresh) {
         fresh = freshTypeVar();
+        fresh.numeric = t.numeric; // constraints survive instantiation
         replacements.set(t.id, fresh);
       }
       return fresh;

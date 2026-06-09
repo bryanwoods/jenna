@@ -32,6 +32,12 @@ novel features.
   directly — the FFI's natural data carrier. Type annotations also gained
   concrete type arguments (`List Player`) and parenthesized grouping.
 
+- **v0.6 — Numbers that work.** Exponentiation (`**`, right-associative),
+  Float-aware arithmetic with Int promotion, numeric-polymorphic operators
+  (`(a, b) -> a + b` works for Int and Float, rejects strings via numeric
+  type-variable constraints), and `std/math` (`pi`, `sqrt`, rounding,
+  conversions) built on the FFI.
+
 ## Next
 
 - **Record patterns** — destructure records in `match` and bindings.

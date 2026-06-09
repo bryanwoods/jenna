@@ -26,6 +26,10 @@ export function unify(t1: Type, t2: Type): void {
   if (t1.kind === 'TypeVariable' && t2.kind === 'TypeVariable') {
     if (t1.id !== t2.id) {
       t1.instance = t2;
+      // Numeric constraints transfer to the representative
+      if (t1.numeric) {
+        t2.numeric = true;
+      }
     }
     return;
   }
@@ -106,5 +110,18 @@ function unifyVariable(v: TypeVariable, t: Type): void {
       `Infinite type: ${typeToString(v)} occurs in ${typeToString(t)}`
     );
   }
+
+  // A numeric variable (from arithmetic) only accepts Int or Float
+  if (v.numeric) {
+    const target = prune(t);
+    const isNumber =
+      target.kind === 'Primitive' && (target.name === 'Int' || target.name === 'Float');
+    if (!isNumber) {
+      throw new TypeError(
+        `Type mismatch: ${typeToString(target)} is not numeric (arithmetic needs Int or Float)`
+      );
+    }
+  }
+
   v.instance = t;
 }

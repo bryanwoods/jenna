@@ -214,6 +214,20 @@ function createStdlib(): TypeEnvironment {
     returnType: StringType,
   });
 
+  // printFloat: (Float) -> Float
+  env.bind('printFloat', {
+    kind: 'Function',
+    parameters: [FloatType],
+    returnType: FloatType,
+  });
+
+  // floatToString: (Float) -> String
+  env.bind('floatToString', {
+    kind: 'Function',
+    parameters: [FloatType],
+    returnType: StringType,
+  });
+
   // mod: (Int, Int) -> Int
   env.bind('mod', {
     kind: 'Function',
@@ -567,8 +581,51 @@ function inferBinary(expr: BinaryExpr, env: TypeEnvironment): Type {
     return prune(resultType);
   }
 
-  // Arithmetic operators: +, -, *, /, %
-  if (['+', '-', '*', '/', '%'].includes(expr.operator)) {
+  // Arithmetic operators: +, -, *, /, %, **
+  // Int by default; if either side is known to be Float, the operation
+  // is Float-typed and Int operands are promoted (free at runtime —
+  // JavaScript has one number type). Unresolved sides become Float.
+  if (['+', '-', '*', '/', '%', '**'].includes(expr.operator)) {
+    const isFloat = (t: Type): boolean => {
+      const p = prune(t);
+      return p.kind === 'Primitive' && p.name === 'Float';
+    };
+    const isInt = (t: Type): boolean => {
+      const p = prune(t);
+      return p.kind === 'Primitive' && p.name === 'Int';
+    };
+
+    if (isFloat(leftType) || isFloat(rightType)) {
+      // Int operands pass through; anything else must be Float
+      if (!isInt(leftType)) {
+        unify(leftType, FloatType);
+      }
+      if (!isInt(rightType)) {
+        unify(rightType, FloatType);
+      }
+      expr.floatArith = true;
+      return FloatType;
+    }
+
+    // Both operands unresolved: constrain to "some numeric type" and
+    // let the use site decide Int vs Float. Not for / and ** — their
+    // generated code differs by type, so they default eagerly.
+    const lp = prune(leftType);
+    const rp = prune(rightType);
+    if (
+      expr.operator !== '/' &&
+      expr.operator !== '**' &&
+      lp.kind === 'TypeVariable' &&
+      rp.kind === 'TypeVariable'
+    ) {
+      unify(lp, rp);
+      const merged = prune(lp);
+      if (merged.kind === 'TypeVariable') {
+        merged.numeric = true;
+      }
+      return merged;
+    }
+
     unify(leftType, IntType);
     unify(rightType, IntType);
     return IntType;

@@ -5,21 +5,22 @@
 [![CI](https://github.com/bryanwoods/jenna/actions/workflows/ci.yml/badge.svg)](https://github.com/bryanwoods/jenna/actions/workflows/ci.yml)
 
 ```jenna
-import { map, range, sum } from "std/list"
+import { map, foldl, range } from "std/list"
+import { pi, intToFloat } from "std/math"
 
 type Shape = Circle Int | Rect Int Int
 
 let area = (shape) ->
   match shape with
-  | Circle(r) -> 3 * r * r
-  | Rect(w, h) -> w * h
+  | Circle(r) -> pi * r ** 2
+  | Rect(w, h) -> intToFloat(w * h)
   end
 
 # Everything below is fully type-inferred
 let totalArea = range(1, 5)
   |> (radii) -> map(radii, (r) -> Circle(r))
   |> (shapes) -> map(shapes, area)
-  |> sum
+  |> (areas) -> foldl(areas, 0.0, (acc, a) -> acc + a)
 ```
 
 Jenna brings ML-family type safety to the JavaScript ecosystem with syntax
@@ -162,9 +163,15 @@ richer data conversions are on the roadmap.
 | `std/option` | `Option`, `unwrapOr`, `mapOption`, `andThen`, `isSome`, `isNone`                          |
 | `std/result` | `Result`, `mapResult`, `unwrapResult`, `isOk`, `isErr`, `okToOption`                      |
 | `std/string` | `join`, `repeat`                                                                          |
+| `std/math`   | `pi`, `e`, `sqrt`, `floor`, `ceil`, `round`, `intToFloat`, `truncate`, `min`, `max`, `abs`, `clamp` |
 
-Built-ins available everywhere: `print`, `printInt`, `printBool`,
-`intToString`, `concat`, `stringLength`, `mod`.
+Built-ins available everywhere: `print`, `printInt`, `printFloat`,
+`printBool`, `intToString`, `floatToString`, `concat`, `stringLength`,
+`mod`.
+
+Arithmetic works over `Int` and `Float`: operators are numeric-polymorphic
+(`(a, b) -> a + b` accepts both, rejects strings), mixing promotes to
+`Float`, and `**` is exponentiation.
 
 The prelude is ordinary Jenna source — see [`lib/std/`](lib/std) — and
 doubles as a reference for idiomatic code.

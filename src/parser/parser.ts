@@ -511,12 +511,12 @@ export class Parser {
    * a * b, a / b, a % b
    */
   private multiplicative(): Expression {
-    let expr = this.unary();
+    let expr = this.power();
 
     while (this.match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT)) {
       const operator = this.previous().value as '*' | '/' | '%';
       const location = this.previous().location;
-      const right = this.unary();
+      const right = this.power();
       expr = {
         kind: 'Binary',
         operator,
@@ -527,6 +527,28 @@ export class Parser {
     }
 
     return expr;
+  }
+
+  /**
+   * Parse exponentiation (right-associative, binds tighter than *)
+   * 2 ** 3 ** 2 is 2 ** (3 ** 2)
+   */
+  private power(): Expression {
+    const base = this.unary();
+
+    if (this.match(TokenType.POWER)) {
+      const location = this.previous().location;
+      const right = this.power();
+      return {
+        kind: 'Binary',
+        operator: '**',
+        left: base,
+        right,
+        location,
+      };
+    }
+
+    return base;
   }
 
   /**

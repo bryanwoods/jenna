@@ -311,9 +311,13 @@ function generateBinary(expr: BinaryExpr, ctx: CodegenContext): string {
   const left = generateExpression(expr.left, ctx);
   const right = generateExpression(expr.right, ctx);
 
-  // Jenna's / is integer division (Int / Int -> Int), so truncate
+  // Int division and exponentiation truncate (Int op Int -> Int);
+  // Float-typed arithmetic (tagged by inference) stays fractional
   if (expr.operator === '/') {
-    return `Math.trunc(${left} / ${right})`;
+    return expr.floatArith ? `(${left} / ${right})` : `Math.trunc(${left} / ${right})`;
+  }
+  if (expr.operator === '**') {
+    return expr.floatArith ? `(${left} ** ${right})` : `Math.trunc(${left} ** ${right})`;
   }
 
   // Map Jenna operators to JavaScript operators

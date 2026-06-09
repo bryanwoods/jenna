@@ -52,6 +52,27 @@ describe('Standard Library Prelude', () => {
     expect(() => compileProject(entry, fsReader)).not.toThrow();
   });
 
+  it('std/math provides constants, rounding, and conversions', () => {
+    const dir = fs.mkdtempSync(path.join(process.cwd(), '.tmp-stdlib-test-'));
+    const entry = path.join(dir, 'main.jn');
+    try {
+      fs.writeFileSync(entry, `
+import { pi, sqrt, floor, intToFloat, min, max, abs, clamp } from "std/math"
+let a = printInt(floor(pi))
+let b = printFloat(sqrt(4.0))
+let c = printFloat(pi * 2 ** 2)
+let d = printInt(min(3, 1))
+let e = printInt(abs(0 - 7))
+let f = printInt(clamp(99, 0, 10))
+let g = printFloat(intToFloat(2) / 4)
+`);
+      const logged = runFile(entry);
+      expect(logged).toEqual([3, 2, Math.PI * 4, 1, 7, 10, 0.5]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('keeps prelude internals private', () => {
     // std/list imports Option from std/option but does not re-export it;
     // a program importing only std/list cannot use Some

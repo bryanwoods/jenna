@@ -58,9 +58,11 @@ export interface IdentifierExpr {
 export interface BinaryExpr {
   kind: 'Binary';
   location?: SourceLocation;
-  operator: '+' | '-' | '*' | '/' | '%' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '&&' | '||' | '|>';
+  operator: '+' | '-' | '*' | '/' | '%' | '**' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '&&' | '||' | '|>';
   left: Expression;
   right: Expression;
+  /** Set by inference when arithmetic is Float-typed; '/' and '**' codegen depend on it */
+  floatArith?: boolean;
 }
 
 export interface UnaryExpr {

@@ -231,6 +231,55 @@ describe('Type Inference', () => {
     });
   });
 
+  describe('Float Arithmetic', () => {
+    it('keeps pure-Int arithmetic Int', () => {
+      expect(() => inferTypes(parse(tokenize('let x = 2 ** 10 + 1')))).not.toThrow();
+    });
+
+    it('promotes mixed Int/Float arithmetic to Float', () => {
+      const source = 'let tau = 3.14 * 2\nlet s = floatToString(tau)';
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+
+    it('infers unresolved operands as Float when mixed with Float', () => {
+      const source = 'let f = (x) -> x + 1.5\nlet y = f(2.5)';
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+      const bad = 'let f = (x) -> x + 1.5\nlet y = f("s")';
+      expect(() => inferTypes(parse(tokenize(bad)))).toThrow(TypeError);
+    });
+
+    it('rejects non-numeric operands in Float arithmetic', () => {
+      expect(() => inferTypes(parse(tokenize('let x = 1.5 + "s"')))).toThrow(TypeError);
+    });
+
+    it('Float result cannot be used as Int', () => {
+      const source = 'let x = 1.5 * 2\nlet y = printInt(x)';
+      expect(() => inferTypes(parse(tokenize(source)))).toThrow(TypeError);
+    });
+
+    it('arithmetic on unresolved operands is numeric-polymorphic', () => {
+      const source = 'let add = (a, b) -> a + b\nlet i = add(1, 2)\nlet f = add(1.5, 2.0)';
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+
+    it('numeric constraints reject strings at instantiation', () => {
+      const source = 'let add = (a, b) -> a + b\nlet bad = add("x", "y")';
+      expect(() => inferTypes(parse(tokenize(source)))).toThrow('is not numeric');
+    });
+
+    it('folds with Float accumulators infer correctly', () => {
+      const source = `type List a = Cons a List a | Nil
+let foldl = (lst, init, f) ->
+  match lst with
+  | Nil -> init
+  | Cons(h, t) -> foldl(t, f(init, h), f)
+  end
+let total = foldl(Cons(1.5, Cons(2.5, Nil)), 0.0, (acc, x) -> acc + x)
+let s = floatToString(total)`;
+      expect(() => inferTypes(parse(tokenize(source)))).not.toThrow();
+    });
+  });
+
   describe('Let-Polymorphism', () => {
     it('allows a let-bound function at multiple types', () => {
       const source = 'let id = (x) -> x\nlet a = id(1)\nlet b = id("s")';

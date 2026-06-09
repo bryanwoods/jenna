@@ -97,7 +97,8 @@ logical_and    ::= equality ('&&' equality)*
 equality       ::= relational (('==' | '!=') relational)*
 relational     ::= additive (('<' | '<=' | '>' | '>=') additive)*
 additive       ::= multiplicative (('+' | '-') multiplicative)*
-multiplicative ::= unary (('*' | '/' | '%') unary)*
+multiplicative ::= power (('*' | '/' | '%') power)*
+power          ::= unary ('**' power)?            (* right-associative *)
 unary          ::= ('!' | '-') unary | call
 call           ::= primary ('(' arguments? ')' | '.' IDENTIFIER)*
 arguments      ::= expression (',' expression)*

@@ -294,6 +294,12 @@ export class Lexer {
       return { type: TokenType.PIPE_RIGHT, value: '|>', location };
     }
 
+    if (char === '*' && this.peek() === '*') {
+      this.advance();
+      this.advance();
+      return { type: TokenType.POWER, value: '**', location };
+    }
+
     // Single-character tokens
     const singleChar = this.advance();
     switch (singleChar) {
