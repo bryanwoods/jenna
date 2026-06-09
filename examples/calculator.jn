@@ -47,7 +47,6 @@ let eval = (expr) ->
             | Ok(l) -> Ok(l / r)
             | Err(e) -> Err(e)
             end
-          end
       | Err(e) -> Err(e)
       end
   end
@@ -55,7 +54,7 @@ let eval = (expr) ->
 # Helper to print results
 let printResult = (result) ->
   match result with
-  | Ok(value) -> print(value)
+  | Ok(value) -> print(intToString(value))
   | Err(msg) -> print(msg)
   end
 

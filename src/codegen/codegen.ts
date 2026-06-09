@@ -151,6 +151,11 @@ function generateBinary(expr: BinaryExpr, ctx: CodegenContext): string {
   const left = generateExpression(expr.left, ctx);
   const right = generateExpression(expr.right, ctx);
 
+  // Jenna's / is integer division (Int / Int -> Int), so truncate
+  if (expr.operator === '/') {
+    return `Math.trunc(${left} / ${right})`;
+  }
+
   // Map Jenna operators to JavaScript operators
   const op = expr.operator;
   return `(${left} ${op} ${right})`;

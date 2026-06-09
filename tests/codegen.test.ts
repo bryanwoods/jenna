@@ -39,6 +39,13 @@ describe('Code Generation', () => {
       const code = compile('let x = 2 + 3 * 4');
       expect(code).toContain('(2 + (3 * 4))');
     });
+
+    it('should generate truncating integer division', () => {
+      const code = compile('let x = 7 / 2');
+      expect(code).toContain('Math.trunc(7 / 2)');
+      const result = new Function(code + '\nreturn x;')();
+      expect(result).toBe(3);
+    });
   });
 
   describe('Functions', () => {
