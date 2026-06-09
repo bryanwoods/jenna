@@ -231,6 +231,43 @@ describe('Type Inference', () => {
     });
   });
 
+  describe('Type Annotations', () => {
+    it('should reject unknown type names', () => {
+      const source = 'let x: Foo = 5';
+      const tokens = tokenize(source);
+      const ast = parse(tokens);
+      expect(() => inferTypes(ast)).toThrow('Unknown type: Foo');
+    });
+
+    it('should reject unknown type names inside function types', () => {
+      const source = 'let f: (Foo) -> Foo = (x) -> x';
+      const tokens = tokenize(source);
+      const ast = parse(tokens);
+      expect(() => inferTypes(ast)).toThrow('Unknown type: Foo');
+    });
+
+    it('should accept annotations referencing declared ADTs', () => {
+      const source = 'type Color = Red | Green | Blue\nlet c: Color = Red';
+      const tokens = tokenize(source);
+      const ast = parse(tokens);
+      expect(() => inferTypes(ast)).not.toThrow();
+    });
+
+    it('should reject wrong number of type arguments', () => {
+      const source = 'type Option a = Some a | None\nlet x: Option = None';
+      const tokens = tokenize(source);
+      const ast = parse(tokens);
+      expect(() => inferTypes(ast)).toThrow('expects 1 type argument(s), got 0');
+    });
+
+    it('should not leak ADTs between separate programs', () => {
+      const first = parse(tokenize('type Color = Red | Green'));
+      inferTypes(first);
+      const second = parse(tokenize('let c: Color = 5'));
+      expect(() => inferTypes(second)).toThrow('Unknown type: Color');
+    });
+  });
+
   describe('Standard Library', () => {
     it('should have print function', () => {
       const source = 'let result = print("hello")';

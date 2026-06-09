@@ -277,9 +277,15 @@ describe('Parser', () => {
       expect(() => parse(tokens)).toThrow();
     });
 
-    it('should throw on invalid type annotation', () => {
-      const tokens = tokenize('let x: Foo = 5');
+    it('should throw on missing type annotation', () => {
+      const tokens = tokenize('let x: = 5');
       expect(() => parse(tokens)).toThrow();
+    });
+
+    it('should parse user-defined type names in annotations', () => {
+      // Unknown type names are a type error, not a parse error
+      const tokens = tokenize('let x: Foo = 5');
+      expect(() => parse(tokens)).not.toThrow();
     });
   });
 });

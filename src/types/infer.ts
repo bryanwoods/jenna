@@ -103,6 +103,15 @@ function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new
   }
 
   if (astType.kind === 'CustomType') {
+    const adt = adtRegistry.get(astType.name);
+    if (!adt) {
+      throw new TypeError(`Unknown type: ${astType.name}`);
+    }
+    if (astType.arguments.length !== adt.typeParams.length) {
+      throw new TypeError(
+        `Type ${astType.name} expects ${adt.typeParams.length} type argument(s), got ${astType.arguments.length}`
+      );
+    }
     const typeArgs = astType.arguments.map(arg => astTypeToType(arg, subst));
     return {
       kind: 'ADT',
@@ -118,6 +127,11 @@ function astTypeToType(astType: ASTTypeAnnotation, subst: TypeSubstitution = new
  * Global registry of ADT constructors
  */
 const constructorRegistry = new Map<string, ConstructorInfo>();
+
+/**
+ * Global registry of declared ADTs (name -> type parameters)
+ */
+const adtRegistry = new Map<string, { typeParams: string[] }>();
 
 /**
  * Create a type environment with built-in functions
@@ -169,6 +183,8 @@ function createStdlib(): TypeEnvironment {
 function registerADT(decl: TypeDeclaration): void {
   const adtName = decl.name;
   const typeParams = decl.typeParams;
+
+  adtRegistry.set(adtName, { typeParams });
 
   // Register each variant as a constructor
   for (const variant of decl.variants) {
@@ -656,6 +672,11 @@ function inferLetDeclaration(decl: LetDeclaration, env: TypeEnvironment): void {
 export function inferTypes(ast: Program): Program {
   // Reset type variable counter for fresh inference
   resetTypeVarCounter();
+
+  // Reset per-program state so ADTs from a previous compile don't leak in
+  constructorRegistry.clear();
+  adtRegistry.clear();
+  warnings.length = 0;
 
   // Create environment with standard library
   const env = createStdlib();
